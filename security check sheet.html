@@ -3,279 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>セキュリティチェックシート</title>
+    <title>セキュリティチェックシート AIナレッジベース</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
-        body {
-            font-family: 'Noto Sans JP', sans-serif;
-        }
-        .tab-btn {
-            transition: all 0.3s ease;
-        }
-        .tab-btn.active {
-            border-color: #3b82f6;
-            background-color: #3b82f6;
-            color: white;
-        }
-        .table-container {
-            width: 100%;
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            min-width: 1200px;
-        }
-        th, td {
-            white-space: normal;
-            word-wrap: break-word;
-            padding: 10px;
-            border: 1px solid #e5e7eb;
-            vertical-align: top;
-        }
-        th {
-            background-color: #f3f4f6;
-            font-weight: 700;
-            position: sticky;
-            top: 0;
-        }
-        .search-input {
-            width: 100%;
-        }
-        .search-box {
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
-            padding-bottom: 1rem;
-        }
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .tab-btn.active { border-color: #3b82f6; background-color: #3b82f6; color: white; }
+        .table-container { width: 100%; overflow-x: auto; }
+        table { width: 100%; min-width: 1200px; }
+        th, td { padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; white-space: normal; word-wrap: break-word; }
+        th { background-color: #f3f4f6; font-weight: 700; position: sticky; top: 0; z-index: 1; }
+        .search-box { position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 1rem; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #update-table input, #update-table select { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; }
+        #update-table textarea { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; height: 100px; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6 lg:p-8">
 
     <div id="app" class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg">
-        <!-- Header -->
-        <header class="p-4 border-b border-gray-200">
+        <header class="p-4 border-b border-gray-200 flex justify-between items-center">
             <h1 class="text-2xl font-bold text-gray-800">セキュリティチェックシート ナレッジベース</h1>
         </header>
 
-        <!-- Tabs -->
         <div class="px-4 pt-4 border-b border-gray-200">
             <nav class="flex space-x-2" id="tabs">
                 <button data-tab="search" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">① 検索＆回答</button>
                 <button data-tab="knowledge" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">② ナレッジベース</button>
                 <button data-tab="master" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">③ カテゴリマスタ</button>
                 <button data-tab="manual" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">④ 使い方</button>
+                <button data-tab="updater" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">⑤ ナレッジ更新支援 (AI)</button>
             </nav>
         </div>
 
-        <!-- Tab Content -->
         <main class="p-4 sm:p-6">
-            <!-- Search & Answer Tab -->
-            <div id="search-content" class="tab-content">
-                <div class="search-box">
-                    <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">↓ここにクライアントからの質問を貼り付けて検索</label>
-                    <input type="text" id="search-input" class="search-input p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="例：ISMS 認証">
-                </div>
-                <h2 class="text-xl font-semibold text-gray-800 mt-6 mb-4">検索結果</h2>
-                <div class="table-container">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="w-1/12">ID</th>
-                                <th class="w-2/12">カテゴリ</th>
-                                <th class="w-3/12">質問</th>
-                                <th class="w-4/12">標準回答</th>
-                                <th class="w-2/12">補足情報</th>
-                            </tr>
-                        </thead>
-                        <tbody id="search-results" class="bg-white divide-y divide-gray-200">
-                            <!-- Results will be injected here -->
-                            <tr><td colspan="5" class="text-center text-gray-500 py-10">検索ボックスに質問を入力してください。</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Knowledge Base Tab -->
-            <div id="knowledge-content" class="tab-content hidden">
-                 <h2 class="text-xl font-semibold text-gray-800 mb-4">ナレッジベース一覧</h2>
-                 <div class="table-container">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th>ID</th>
-                                <th>大カテゴリ</th>
-                                <th>中カテゴリ</th>
-                                <th>質問</th>
-                                <th>キーワード</th>
-                                <th>標準回答</th>
-                                <th>補足情報</th>
-                                <th>担当部署</th>
-                                <th>最終更新日</th>
-                            </tr>
-                        </thead>
-                        <tbody id="knowledge-base-body" class="bg-white divide-y divide-gray-200">
-                            <!-- Knowledge base data will be injected here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Category Master Tab -->
-            <div id="master-content" class="tab-content hidden">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">カテゴリマスタ</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <h3 class="font-semibold text-lg text-gray-700 mb-2 border-b pb-2">大カテゴリ</h3>
-                        <ul id="master-daicategory" class="list-disc list-inside space-y-1 text-gray-600"></ul>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-lg text-gray-700 mb-2 border-b pb-2">中カテゴリ</h3>
-                        <ul id="master-chucategory" class="list-disc list-inside space-y-1 text-gray-600"></ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Manual Tab -->
-            <div id="manual-content" class="tab-content hidden">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">使い方・運用フロー</h2>
-                <div class="space-y-6 text-gray-700">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800">1. 【受付】クライアントからのチェックシート受領</h3>
-                        <p>クライアントから受け取ったセキュリティチェックシートを開きます。</p>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800">2. 【検索】「① 検索＆回答」シートを利用</h3>
-                        <p>シート上部の検索ボックスに、クライアントからの質問を1つずつコピー＆ペーストして検索します。関連キーワード（例：「暗号化」「ログ」など）でも検索できます。</p>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800">3. 【回答】検索結果を転記</h3>
-                        <p>検索結果に表示された「標準回答」や「補足情報」をコピーし、クライアントのチェックシートに貼り付けます。</p>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800">4. 【登録】ナレッジの蓄積</h3>
-                        <p class="mb-2">検索しても回答が見つからなかった質問や、新しい回答を作成した場合は、このナレッジベースに情報を追加する必要があります。</p>
-                        <p class="p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-800 rounded-r-lg">
-                            <strong>重要：</strong> 現在このWeb版ではデータの追加・編集はできません。ナレッジの更新は、元となるExcelファイル（または管理台帳）で行い、定期的にこのHTMLに反映させる運用を想定しています。
-                        </p>
-                    </div>
-                     <div>
-                        <h3 class="text-lg font-semibold text-gray-800">5. 【見直し】定期的なメンテナンス</h3>
-                        <p>半年に1回など、定期的に「② ナレッジベース」の内容を見直し、情報が古くなっていないかを確認・更新してください。</p>
-                    </div>
-                </div>
-            </div>
+            <!-- Tabs will be dynamically populated here -->
+            <div id="search-content" class="tab-content"></div>
+            <div id="knowledge-content" class="tab-content hidden"></div>
+            <div id="master-content" class="tab-content hidden"></div>
+            <div id="updater-content" class="tab-content hidden"></div>
+            <div id="manual-content" class="tab-content hidden"></div>
         </main>
     </div>
 
-<script>
+<script type="module">
     // --- Data Section ---
+    // All knowledge base data is stored directly here to avoid fetch errors.
     const knowledgeBaseData = [
-        { id: 'SEC-0001', daiCategory: '組織的セキュリティ', chuCategory: '情報セキュリティ認証', question: 'ISMS (ISO/IEC 27001) など、第三者による情報セキュリティ認証を取得していますか？', keywords: 'ISMS,ISO27001,認証,Pマーク,プライバシーマーク', answer: 'はい。当社は情報セキュリティマネジメントシステム（ISMS）の国際規格である「ISO/IEC 27001」の認証を取得しております。', supplement: '認証範囲や取得日などの詳細情報が必要な場合は、別途お問い合わせください。', department: '情報システム部', updated: '2025/08/27' },
-        { id: 'SEC-0002', daiCategory: '組織的セキュリティ', chuCategory: 'インシデント管理', question: '情報漏洩やサービス停止など、セキュリティインシデント発生時の対処方法は確立されていますか？', keywords: 'インシデント,障害,漏洩,サービス停止,BCP', answer: 'はい。情報セキュリティインシデント対応規程を定め、インシデントの検知、報告、分析、復旧、再発防止策までの一連のプロセスを定義しています。重大なインシデント発生時には、経営層を含むインシデントレスポンスチームを招集し、迅速に対応します。', supplement: 'インシデント対応フロー図を別途ご提示可能です。', department: '情報システム部', updated: '2025/08/27' },
-        { id: 'SEC-0003', daiCategory: '技術的セキュリティ', chuCategory: 'データ保管', question: 'データの保管場所は国内のデータセンターですか？', keywords: 'データセンター,DC,保管場所,国内,海外', answer: 'はい。お客様からお預かりしたデータは、すべて日本国内のデータセンターで保管しております。', supplement: '利用データセンター：[利用しているクラウド名やDC名]', department: '開発部', updated: '2025/08/27' },
-        { id: 'SEC-0004', daiCategory: '技術的セキュリティ', chuCategory: '暗号化', question: '通信や保管データは暗号化されていますか？', keywords: '暗号化,TLS,SSL,AES', answer: 'はい。お客様のブラウザと当社サーバー間の通信はTLS 1.2以上で暗号化されています。また、データベースに保管される重要情報はAES-256方式で暗号化しています。', supplement: 'CRYPTREC暗号リストに準拠した暗号技術を採用しています。', department: '開発部', updated: '2025/08/27' },
-        { id: 'SEC-0005', daiCategory: '技術的セキュリティ', chuCategory: 'アクセス制御', question: 'データへのアクセス権限は管理されていますか？', keywords: 'アクセス制御,権限管理,最小権限', answer: 'はい。業務上必要な担当者のみが、承認された権限の範囲内でデータにアクセス可能です。アクセス権限は、役割に基づいて管理され、定期的な棚卸しを実施しています。', supplement: '職務分掌規程に基づき、開発、運用、管理者の権限は分離されています。', department: '情報システム部', updated: '2025/08/27' },
-        { id: 'SEC-0006', daiCategory: '技術的セキュリティ', chuCategory: 'ログ管理', question: 'アクセスログや操作ログは取得・保管されていますか？', keywords: 'ログ,監査証跡,監視', answer: 'はい。ユーザーのログイン、ファイルアクセス、重要な操作に関するログを取得し、1年以上保管しています。これらのログは定期的に監視し、不正なアクティビティの検知に利用します。', supplement: 'お客様の求めに応じて、関連するログの提供が可能です（ただし、法的な制約やプライバシー保護の観点から開示範囲には制限があります）。', department: '開発部', updated: '2025/08/27' },
-        { id: 'SEC-0007', daiCategory: '技術的セキュリティ', chuCategory: '脆弱性管理', question: '定期的な脆弱性診断は実施していますか？', keywords: '脆弱性,診断,パッチ,WAF', answer: 'はい。定期的に第三者機関によるWebアプリケーション脆弱性診断を実施しています。また、OSやミドルウェアの脆弱性情報を常に収集し、セキュリティパッチを速やかに適用しています。', supplement: 'ファイアウォールおよびWAF（Web Application Firewall）を導入し、不正なアクセスからシステムを保護しています。', department: '開発部', updated: '2025/08/27' },
-        { id: 'SEC-0008', daiCategory: '技術的セキュリティ', chuCategory: 'マルウェア対策', question: 'ウイルス対策やマルウェア対策は実施していますか？', keywords: 'ウイルス,マルウェア,アンチウイルス', answer: 'すべてのサーバーにアンチウイルスソフトを導入し、定義ファイルを常に最新の状態に保っています。また、不正なファイルのアップロードを検知・ブロックする仕組みも備えています。', supplement: '', department: '開発部', updated: '2025/08/27' },
-        { id: 'SEC-0009', daiCategory: '組織的セキュリティ', chuCategory: 'システム構成', question: 'システム構成図の提供は可能ですか？', keywords: '構成図,ネットワーク,アーキテクチャ', answer: 'はい。ご契約を検討いただけるお客様には、NDA（秘密保持契約）締結後に、サービスの概要レベルのシステム構成図をご提示することが可能です。', supplement: '', department: '営業部', updated: '2025/08/27' },
-        { id: 'SEC-0010', daiCategory: '契約・法的準拠', chuCategory: '知的財産権', question: 'アップロードしたデータの著作権や知的財産権は誰に帰属しますか？', keywords: '著作権,知的財産権,二次利用', answer: 'ユーザーコンテンツの知的財産権は、すべて利用者様に帰属します。当社が、利用者様の許諾なくコンテンツを本サービスの提供目的外で二次利用したり、第三者に提供したりすることは一切ありません。', supplement: '利用規約の第XX条に詳細を記載しております。', department: '法務部', updated: '2025/08/27' },
-        { id: 'SEC-0011', daiCategory: '技術的セキュリティ', chuCategory: '環境分離', question: 'マルチテナント環境における他社の影響を分離する対策はありますか？', keywords: 'マルチテナント,共有環境,論理分割', answer: 'はい。本サービスはマルチテナントアーキテクチャを採用していますが、アプリケーションレベルで各企業様のデータを論理的に完全に分離しています。権限制御により、他のお客様のデータ領域へアクセスすることは技術的に不可能です。また、他のお客様の高負荷がパフォーマンスに影響を与えないよう、リソース監視と制御を行っています。', supplement: '', department: '開発部', updated: '2025/08/27' }
+        { "id": "SEC-0001", "daiCategory": "組織的セキュリティ", "chuCategory": "情報セキュリティ認証", "question": "ISMS (ISO/IEC 27001) など、第三者による情報セキュリティ認証を取得していますか？", "keywords": "ISMS,ISO27001,認証,Pマーク,プライバシーマーク", "answer": "はい。当社は情報セキュリティマネジメントシステム（ISMS）の国際規格である「ISO/IEC 27001」の認証を取得しております。", "supplement": "認証範囲や取得日などの詳細情報が必要な場合は、別途お問い合わせください。", "department": "情報システム部", "updated": "2025/08/27" },
+        { "id": "SEC-0002", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "情報漏洩やサービス停止など、セキュリティインシデント発生時の対処方法は確立されていますか？", "keywords": "インシデント,障害,漏洩,サービス停止,BCP", "answer": "はい。情報セキュリティインシデント対応規程を定め、インシデントの検知、報告、分析、復旧、再発防止策までの一連のプロセスを定義しています。重大なインシデント発生時には、経営層を含むインシデントレスポンスチームを招集し、迅速に対応します。", "supplement": "インシデント対応フロー図を別途ご提示可能です。", "department": "情報システム部", "updated": "2025/08/27" },
+        { "id": "SEC-0003", "daiCategory": "技術的セキュリティ", "chuCategory": "データ保管", "question": "データの保管場所は国内のデータセンターですか？", "keywords": "データセンター,DC,保管場所,国内,海外", "answer": "はい。お客様からお預かりしたデータは、すべて日本国内のデータセンターで保管しております。", "supplement": "利用データセンター：[利用しているクラウド名やDC名]", "department": "開発部", "updated": "2025/08/27" },
+        { "id": "SEC-0004", "daiCategory": "技術的セキュリティ", "chuCategory": "暗号化", "question": "通信や保管データは暗号化されていますか？", "keywords": "暗号化,TLS,SSL,AES", "answer": "はい。お客様のブラウザと当社サーバー間の通信はTLS 1.2以上で暗号化されています。また、データベースに保管される重要情報はAES-256方式で暗号化しています。", "supplement": "CRYPTREC暗号リストに準拠した暗号技術を採用しています。", "department": "開発部", "updated": "2025/08/27" },
+        { "id": "SEC-0005", "daiCategory": "技術的セキュリティ", "chuCategory": "アクセス制御", "question": "データへのアクセス権限は管理されていますか？", "keywords": "アクセス制御,権限管理,最小権限", "answer": "はい。業務上必要な担当者のみが、承認された権限の範囲内でデータにアクセス可能です。アクセス権限は、役割に基づいて管理され、定期的な棚卸しを実施しています。", "supplement": "職務分掌規程に基づき、開発、運用、管理者の権限は分離されています。", "department": "情報システム部", "updated": "2025/08/27" },
+        { "id": "SEC-0006", "daiCategory": "技術的セキュリティ", "chuCategory": "ログ管理", "question": "アクセスログや操作ログは取得・保管されていますか？", "keywords": "ログ,監査証跡,監視", "answer": "はい。ユーザーのログイン、ファイルアクセス、重要な操作に関するログを取得し、1年以上保管しています。これらのログは定期的に監視し、不正なアクティビティの検知に利用します。", "supplement": "お客様の求めに応じて、関連するログの提供が可能です（ただし、法的な制約やプライバシー保護の観点から開示範囲には制限があります）。", "department": "開発部", "updated": "2025/08/27" },
+        { "id": "SEC-0007", "daiCategory": "技術的セキュリティ", "chuCategory": "脆弱性管理", "question": "定期的な脆弱性診断は実施していますか？", "keywords": "脆弱性,診断,パッチ,WAF", "answer": "はい。定期的に第三者機関によるWebアプリケーション脆弱性診断を実施しています。また、OSやミドルウェアの脆弱性情報を常に収集し、セキュリティパッチを速やかに適用しています。", "supplement": "ファイアウォールおよびWAF（Web Application Firewall）を導入し、不正なアクセスからシステムを保護しています。", "department": "開発部", "updated": "2025/08/27" },
+        { "id": "SEC-0008", "daiCategory": "技術的セキュリティ", "chuCategory": "マルウェア対策", "question": "ウイルス対策やマルウェア対策は実施していますか？", "keywords": "ウイルス,マルウェア,アンチウイルス", "answer": "すべてのサーバーにアンチウイルスソフトを導入し、定義ファイルを常に最新の状態に保っています。また、不正なファイルのアップロードを検知・ブロックする仕組みも備えています。", "supplement": "", "department": "開発部", "updated": "2025/08/27" },
+        { "id": "SEC-0009", "daiCategory": "組織的セキュリティ", "chuCategory": "システム構成", "question": "システム構成図の提供は可能ですか？", "keywords": "構成図,ネットワーク,アーキテクチャ", "answer": "はい。ご契約を検討いただけるお客様には、NDA（秘密保持契約）締結後に、サービスの概要レベルのシステム構成図をご提示することが可能です。", "supplement": "", "department": "営業部", "updated": "2025/08/27" },
+        { "id": "SEC-0010", "daiCategory": "契約・法的準拠", "chuCategory": "知的財産権", "question": "アップロードしたデータの著作権や知的財産権は誰に帰属しますか？", "keywords": "著作権,知的財産権,二次利用", "answer": "ユーザーコンテンツの知的財産権は、すべて利用者様に帰属します。当社が、利用者様の許諾なくコンテンツを本サービスの提供目的外で二次利用したり、第三者に提供したりすることは一切ありません。", "supplement": "利用規約の第XX条に詳細を記載しております。", "department": "法務部", "updated": "2025/08/27" },
+        { "id": "SEC-0011", "daiCategory": "技術的セキュリティ", "chuCategory": "環境分離", "question": "マルチテナント環境における他社の影響を分離する対策はありますか？", "keywords": "マルチテナント,共有環境,論理分割", "answer": "はい。本サービスはマルチテナントアーキテクチャを採用していますが、アプリケーションレベルで各企業様のデータを論理的に完全に分離しています。権限制御により、他のお客様のデータ領域へアクセスすることは技術的に不可能です。また、他のお客様の高負荷がパフォーマンスに影響を与えないよう、リソース監視と制御を行っています。", "supplement": "", "department": "開発部", "updated": "2025/08/27" }
     ];
 
-    // --- App Logic ---
+    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
+    
+    // --- Main App Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
+        initializeApp();
+    });
+
+    function initializeApp() {
+        setupTabs();
+        populateSearchTab();
+    }
+
+    // --- Tab Management ---
+    function setupTabs() {
         const tabs = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const searchInput = document.getElementById('search-input');
-        const searchResultsContainer = document.getElementById('search-results');
-        const knowledgeBaseContainer = document.getElementById('knowledge-base-body');
-        
-        // --- Tab switching logic ---
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 tabs.forEach(item => item.classList.remove('active'));
                 tab.classList.add('active');
+                const targetId = tab.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                document.getElementById(`${targetId}-content`).classList.remove('hidden');
 
-                const target = tab.getAttribute('data-tab');
-                tabContents.forEach(content => {
-                    if (content.id === `${target}-content`) {
-                        content.classList.remove('hidden');
-                    } else {
-                        content.classList.add('hidden');
-                    }
-                });
+                switch(targetId) {
+                    case 'search': populateSearchTab(); break;
+                    case 'knowledge': populateKnowledgeBase(); break;
+                    case 'master': populateCategoryMaster(); break;
+                    case 'updater': populateUpdaterTab(); break;
+                    case 'manual': populateManual(); break;
+                }
             });
         });
+    }
 
-        // --- Search logic ---
-        const performSearch = () => {
-            const query = searchInput.value.toLowerCase().trim();
-            if (query === '') {
-                searchResultsContainer.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500 py-10">検索ボックスに質問を入力してください。</td></tr>';
-                return;
-            }
+    // --- Tab Content Population ---
+    function populateSearchTab() {
+        const container = document.getElementById('search-content');
+        if (container.innerHTML !== '') return;
+        container.innerHTML = `
+            <div class="search-box">
+                <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">↓ここにクライアントからの質問を貼り付けて検索</label>
+                <input type="text" id="search-input" class="w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例：ISMS 認証">
+            </div>
+            <h2 class="text-xl font-semibold text-gray-800 mt-6 mb-4">検索結果</h2>
+            <div class="table-container">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50"><tr><th>ID</th><th>カテゴリ</th><th>質問</th><th>標準回答</th><th>補足情報</th></tr></thead>
+                    <tbody id="search-results"></tbody>
+                </table>
+            </div>`;
+        document.getElementById('search-input').addEventListener('input', performSearch);
+        performSearch();
+    }
 
-            const results = knowledgeBaseData.filter(item => {
-                const searchableText = `${item.question} ${item.keywords}`.toLowerCase();
-                return searchableText.includes(query);
-            });
+    function populateKnowledgeBase() {
+        const container = document.getElementById('knowledge-content');
+        container.innerHTML = `
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">ナレッジベース一覧</h2>
+            <div class="table-container">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50"><tr><th>ID</th><th>大カテゴリ</th><th>中カテゴリ</th><th>質問</th><th>キーワード</th><th>標準回答</th><th>補足情報</th><th>担当部署</th><th>最終更新日</th></tr></thead>
+                    <tbody>
+                        ${knowledgeBaseData.map(item => `
+                            <tr><td>${item.id||''}</td><td>${item.daiCategory||''}</td><td>${item.chuCategory||''}</td><td>${item.question||''}</td><td>${item.keywords||''}</td><td>${item.answer||''}</td><td>${item.supplement||''}</td><td>${item.department||''}</td><td>${item.updated||''}</td></tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
 
-            renderSearchResults(results);
-        };
+    function populateCategoryMaster() {
+        const container = document.getElementById('master-content');
+        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory))];
+        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory))];
+        container.innerHTML = `
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">カテゴリマスタ</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div><h3 class="font-semibold text-lg mb-2 border-b pb-2">大カテゴリ</h3><ul class="list-disc list-inside">${daiCategories.map(c => `<li>${c}</li>`).join('')}</ul></div>
+                <div><h3 class="font-semibold text-lg mb-2 border-b pb-2">中カテゴリ</h3><ul class="list-disc list-inside">${chuCategories.map(c => `<li>${c}</li>`).join('')}</ul></div>
+            </div>`;
+    }
 
-        const renderSearchResults = (results) => {
-            if (results.length === 0) {
-                searchResultsContainer.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500 py-10">該当する回答が見つかりません。キーワードを変えてお試しください。</td></tr>';
-                return;
-            }
-            searchResultsContainer.innerHTML = results.map(item => `
-                <tr class="hover:bg-gray-50">
-                    <td class="font-mono text-sm">${item.id}</td>
-                    <td>${item.daiCategory} > ${item.chuCategory}</td>
-                    <td>${item.question}</td>
-                    <td>${item.answer}</td>
-                    <td>${item.supplement}</td>
-                </tr>
-            `).join('');
-        };
+    function populateManual() {
+        document.getElementById('manual-content').innerHTML = `
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">使い方・運用フロー</h2>
+            <div class="space-y-6 text-gray-700 prose max-w-none">
+                <p>このツールは、セキュリティチェックシートへの回答業務を効率化するためのナレッジベースです。</p>
+                <h3>ナレッジの検索と利用</h3>
+                <ol>
+                    <li><strong>「① 検索＆回答」タブ</strong> を開きます。</li>
+                    <li>上部の検索ボックスに、顧客からの質問や関連キーワードを入力します。</li>
+                    <li>検索結果に表示された「標準回答」などをコピーして利用します。</li>
+                </ol>
+                <h3>ナレッジの更新（AI支援）</h3>
+                <ol>
+                    <li><strong>「⑤ ナレッジ更新支援 (AI)」タブ</strong> を開きます。</li>
+                    <li>顧客から受領したチェックシートファイル（Word, Excel, PDF, TXT等）をアップロードします。</li>
+                    <li>AIがファイル内容を解析し、Q&A候補を抽出します。しばらくお待ちください。</li>
+                    <li>抽出された内容を確認し、必要に応じて修正・追記（特にカテゴリやキーワード）を行います。</li>
+                    <li><strong>「更新用JavaScriptコードを生成」</strong>ボタンをクリックし、表示された全データをコピーします。</li>
+                    <li>GitHub上の <strong>index.html</strong> ファイルを編集モードで開き、<code>const knowledgeBaseData = [</code> から <code>];</code> までのデータ部分を、コピーした内容で完全に上書きして保存します。</li>
+                </ol>
+            </div>`;
+    }
+
+    // --- Search Logic ---
+    function performSearch() {
+        const query = document.getElementById('search-input').value.toLowerCase().trim();
+        const container = document.getElementById('search-results');
+        const results = query === '' ? knowledgeBaseData : knowledgeBaseData.filter(item => 
+            `${item.question || ''} ${item.keywords || ''}`.toLowerCase().includes(query)
+        );
         
-        searchInput.addEventListener('input', performSearch);
-
-        // --- Populate Knowledge Base Tab ---
-        const populateKnowledgeBase = () => {
-            knowledgeBaseContainer.innerHTML = knowledgeBaseData.map(item => `
-                <tr class="hover:bg-gray-50">
-                    <td class="font-mono text-sm">${item.id}</td>
-                    <td>${item.daiCategory}</td>
-                    <td>${item.chuCategory}</td>
-                    <td>${item.question}</td>
-                    <td class="text-sm text-gray-600">${item.keywords.split(',').join(', ')}</td>
-                    <td>${item.answer}</td>
-                    <td>${item.supplement}</td>
-                    <td>${item.department}</td>
-                    <td>${item.updated}</td>
-                </tr>
+        if (results.length === 0) {
+            container.innerHTML = `<tr><td colspan="5" class="text-center py-10">該当する回答が見つかりません。</td></tr>`;
+        } else {
+            container.innerHTML = results.map(item => `
+                <tr><td>${item.id||''}</td><td>${(item.daiCategory||'') + ' > ' + (item.chuCategory||'')}</td><td>${item.question||''}</td><td>${item.answer||''}</td><td>${item.supplement||''}</td></tr>
             `).join('');
-        };
+        }
+    }
+    
+    // --- Updater Tab Logic ---
+    function populateUpdaterTab() {
+        const container = document.getElementById('updater-content');
+        if (container.innerHTML !== '') return;
+        container.innerHTML = `
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-lg font-semibold">1. チェックシートファイルをアップロード</h3>
+                    <p class="text-sm text-gray-600 mb-2">顧客から受領したファイル（Word, Excel, CSV, TXT等）を選択してください。</p>
+                    <input type="file" id="file-uploader" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                </div>
+                <div id="ai-parser-status" class="hidden"></div>
+                <div>
+                    <h3 class="text-lg font-semibold">2. AIの解析結果を確認・編集</h3>
+                    <p class="text-sm text-gray-600 mb-2">AIが抽出したQ&A候補です。内容を修正し、カテゴリやキーワードを追記してください。</p>
+                    <div class="table-container">
+                        <table class="min-w-full">
+                           <thead class="bg-gray-50"><tr><th>質問</th><th>回答</th><th>大カテゴリ</th><th>中カテゴリ</th><th>キーワード</th><th>削除</th></tr></thead>
+                           <tbody id="update-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold">3. 更新用コードを生成・反映</h3>
+                    <button id="generate-code-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600">更新用JavaScriptコードを生成</button>
+                    <div id="code-output-area" class="hidden mt-4">
+                        <p class="text-sm text-gray-600 mb-2">下のコードを全てコピーし、GitHubの <code>index.html</code> 内の既存データ部分に上書き保存してください。</p>
+                        <textarea id="code-output" class="w-full h-64 font-mono text-xs border rounded"></textarea>
+                    </div>
+                </div>
+            </div>`;
         
-        // --- Populate Category Master Tab ---
-        const populateCategoryMaster = () => {
-            const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory))];
-            const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory))];
+        document.getElementById('file-uploader').addEventListener('change', handleFileUpload);
+        document.getElementById('generate-code-btn').addEventListener('click', generateJsCode);
+    }
 
-            document.getElementById('master-daicategory').innerHTML = daiCategories.map(c => `<li>${c}</li>`).join('');
-            document.getElementById('master-chucategory').innerHTML = chuCategories.map(c => `<li>${c}</li>`).join('');
+    async function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const statusContainer = document.getElementById('ai-parser-status');
+        statusContainer.innerHTML = `<div class="flex items-center space-x-2 p-4 bg-blue-50 rounded-md"><div class="loader"></div><p>AIがファイルを解析中です。しばらくお待ちください...</p></div>`;
+        statusContainer.classList.remove('hidden');
+
+        try {
+            const base64 = await fileToBase64(file);
+            const extractedText = await callGeminiForExtraction(base64, file.type);
+            const qaPairs = JSON.parse(extractedText);
+            renderUpdateTable(qaPairs);
+            statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析が完了しました。下の表で内容を確認・編集してください。</div>`;
+        } catch (error) {
+            console.error('AI解析エラー:', error);
+            statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラーが発生しました: ${error.message}</div>`;
+        }
+    }
+    
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    async function callGeminiForExtraction(base64, mimeType) {
+        const apiKey = ""; // APIキーは空のままにします
+        const systemPrompt = `あなたは、セキュリティチェックシートの文書から「質問」と「回答」のペアを抽出する専門家です。
+提供されたファイルの内容から、明確なQ&Aペアをすべて抽出し、以下のJSON形式の配列で出力してください。
+- 質問と回答のテキストのみを抽出してください。余分なメタ情報や番号は含めないでください。
+- 明確なQ&Aペアと判断できないテキストは無視してください。
+- 出力は必ずJSON配列のみにしてください。説明文や\`\`\`jsonは不要です。
+
+例:
+[
+  {"question": "ISMS認証は取得していますか？", "answer": "はい、ISO27001を取得済みです。"},
+  {"question": "データの保管場所は国内ですか？", "answer": "全て国内のデータセンターで保管しています。"}
+]`;
+
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: systemPrompt },
+                    { inline_data: { mime_type: mimeType, data: base64 } }
+                ]
+            }],
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
         };
 
-        // --- Initial Load ---
-        populateKnowledgeBase();
-        populateCategoryMaster();
-    });
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`API Error: ${errorBody.error.message}`);
+        }
+        const result = await response.json();
+        return result.candidates[0].content.parts[0].text;
+    }
+
+    function renderUpdateTable(qaPairs) {
+        const tableBody = document.getElementById('update-table');
+        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory))];
+        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory))];
+
+        tableBody.innerHTML = qaPairs.map((pair, index) => `
+            <tr id="row-${index}">
+                <td><textarea name="question">${pair.question || ''}</textarea></td>
+                <td><textarea name="answer">${pair.answer || ''}</textarea></td>
+                <td>
+                    <input list="dai-cat-list" name="daiCategory" placeholder="大カテゴリ">
+                    <datalist id="dai-cat-list">${daiCategories.map(c => `<option value="${c}">`).join('')}</datalist>
+                </td>
+                <td>
+                    <input list="chu-cat-list" name="chuCategory" placeholder="中カテゴリ">
+                    <datalist id="chu-cat-list">${chuCategories.map(c => `<option value="${c}">`).join('')}</datalist>
+                </td>
+                <td><input type="text" name="keywords" placeholder="カンマ区切り"></td>
+                <td><button onclick="document.getElementById('row-${index}').remove()" class="text-red-500 hover:text-red-700">✖</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function generateJsCode() {
+        const tableRows = document.querySelectorAll('#update-table tr');
+        const newEntries = [];
+        let maxId = knowledgeBaseData.reduce((max, item) => {
+            const idNum = parseInt((item.id || 'SEC-0000').split('-')[1]);
+            return idNum > max ? idNum : max;
+        }, 0);
+
+        tableRows.forEach(row => {
+            maxId++;
+            const newEntry = {
+                id: `SEC-${String(maxId).padStart(4, '0')}`,
+                question: row.querySelector('[name="question"]').value,
+                answer: row.querySelector('[name="answer"]').value,
+                daiCategory: row.querySelector('[name="daiCategory"]').value,
+                chuCategory: row.querySelector('[name="chuCategory"]').value,
+                keywords: row.querySelector('[name="keywords"]').value,
+                supplement: '',
+                department: '未定',
+                updated: new Date().toISOString().split('T')[0]
+            };
+            newEntries.push(newEntry);
+        });
+
+        const updatedData = [...knowledgeBaseData, ...newEntries];
+        
+        // Generate the full JavaScript code block as a string
+        const codeString = `const knowledgeBaseData = ${JSON.stringify(updatedData, null, 4)};`;
+
+        document.getElementById('code-output').value = codeString;
+        document.getElementById('code-output-area').classList.remove('hidden');
+        alert('更新用のJavaScriptコードを生成しました。テキストエリアの内容をコピーしてください。');
+    }
 
 </script>
-
 </body>
 </html>
