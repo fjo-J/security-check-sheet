@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>セキュリティチェックシート AIナレッジベース</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; }
@@ -19,6 +18,9 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #update-table input, #update-table select { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; }
         #update-table textarea { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; height: 100px; }
+        .tooltip { position: relative; display: inline-block; cursor: pointer; }
+        .tooltip .tooltiptext { visibility: hidden; width: 250px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -125px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -39,7 +41,6 @@
         </div>
 
         <main class="p-4 sm:p-6">
-            <!-- Tabs will be dynamically populated here -->
             <div id="search-content" class="tab-content"></div>
             <div id="knowledge-content" class="tab-content hidden"></div>
             <div id="master-content" class="tab-content hidden"></div>
@@ -50,7 +51,6 @@
 
 <script type="module">
     // --- Data Section ---
-    // All knowledge base data is stored directly here to avoid fetch errors.
     const knowledgeBaseData = [
         { "id": "SEC-0001", "daiCategory": "組織的セキュリティ", "chuCategory": "情報セキュリティ認証", "question": "ISMS (ISO/IEC 27001) など、第三者による情報セキュリティ認証を取得していますか？", "keywords": "ISMS,ISO27001,認証,Pマーク,プライバシーマーク", "answer": "はい。当社は情報セキュリティマネジメントシステム（ISMS）の国際規格である「ISO/IEC 27001」の認証を取得しております。", "supplement": "認証範囲や取得日などの詳細情報が必要な場合は、別途お問い合わせください。", "department": "情報システム部", "updated": "2025/08/27" },
         { "id": "SEC-0002", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "情報漏洩やサービス停止など、セキュリティインシデント発生時の対処方法は確立されていますか？", "keywords": "インシデント,障害,漏洩,サービス停止,BCP", "answer": "はい。情報セキュリティインシデント対応規程を定め、インシデントの検知、報告、分析、復旧、再発防止策までの一連のプロセスを定義しています。重大なインシデント発生時には、経営層を含むインシデントレスポンスチームを招集し、迅速に対応します。", "supplement": "インシデント対応フロー図を別途ご提示可能です。", "department": "情報システム部", "updated": "2025/08/27" },
@@ -67,17 +67,13 @@
 
     const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
     
-    // --- Main App Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeApp();
-    });
+    document.addEventListener('DOMContentLoaded', initializeApp);
 
     function initializeApp() {
         setupTabs();
         populateSearchTab();
     }
 
-    // --- Tab Management ---
     function setupTabs() {
         const tabs = document.querySelectorAll('.tab-btn');
         tabs.forEach(tab => {
@@ -89,21 +85,21 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
                 document.getElementById(`${targetId}-content`).classList.remove('hidden');
 
-                switch(targetId) {
-                    case 'search': populateSearchTab(); break;
-                    case 'knowledge': populateKnowledgeBase(); break;
-                    case 'master': populateCategoryMaster(); break;
-                    case 'updater': populateUpdaterTab(); break;
-                    case 'manual': populateManual(); break;
-                }
+                const populateFunctions = {
+                    search: populateSearchTab,
+                    knowledge: populateKnowledgeBase,
+                    master: populateCategoryMaster,
+                    updater: populateUpdaterTab,
+                    manual: populateManual
+                };
+                populateFunctions[targetId]();
             });
         });
     }
 
-    // --- Tab Content Population ---
     function populateSearchTab() {
         const container = document.getElementById('search-content');
-        if (container.innerHTML !== '') return;
+        if (container.innerHTML) return;
         container.innerHTML = `
             <div class="search-box">
                 <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">↓ここにクライアントからの質問を貼り付けて検索</label>
@@ -138,8 +134,8 @@
 
     function populateCategoryMaster() {
         const container = document.getElementById('master-content');
-        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory))];
-        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory))];
+        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory).filter(Boolean))];
+        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory).filter(Boolean))];
         container.innerHTML = `
             <h2 class="text-xl font-semibold text-gray-800 mb-4">カテゴリマスタ</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -149,7 +145,9 @@
     }
 
     function populateManual() {
-        document.getElementById('manual-content').innerHTML = `
+        const container = document.getElementById('manual-content');
+        if (container.innerHTML) return;
+        container.innerHTML = `
             <h2 class="text-xl font-semibold text-gray-800 mb-4">使い方・運用フロー</h2>
             <div class="space-y-6 text-gray-700 prose max-w-none">
                 <p>このツールは、セキュリティチェックシートへの回答業務を効率化するためのナレッジベースです。</p>
@@ -159,19 +157,18 @@
                     <li>上部の検索ボックスに、顧客からの質問や関連キーワードを入力します。</li>
                     <li>検索結果に表示された「標準回答」などをコピーして利用します。</li>
                 </ol>
-                <h3>ナレッジの更新（AI支援）</h3>
+                <h3>ナレッジの更新（AI支援による自動化）</h3>
                 <ol>
+                    <li><strong>【初回のみ】</strong>「⑤ ナレッジ更新支援 (AI)」タブで、<a href="https://github.com/settings/tokens?type=beta" target="_blank" class="text-blue-600 hover:underline">GitHub Personal Access Token (PAT)</a> を設定します。詳しい手順は別途ガイドを参照してください。</li>
                     <li><strong>「⑤ ナレッジ更新支援 (AI)」タブ</strong> を開きます。</li>
-                    <li>顧客から受領したチェックシートファイル（Word, Excel, PDF, TXT等）をアップロードします。</li>
+                    <li>顧客から受領したチェックシートファイルをアップロードします。</li>
                     <li>AIがファイル内容を解析し、Q&A候補を抽出します。しばらくお待ちください。</li>
                     <li>抽出された内容を確認し、必要に応じて修正・追記（特にカテゴリやキーワード）を行います。</li>
-                    <li><strong>「更新用JavaScriptコードを生成」</strong>ボタンをクリックし、表示された全データをコピーします。</li>
-                    <li>GitHub上の <strong>index.html</strong> ファイルを編集モードで開き、<code>const knowledgeBaseData = [</code> から <code>];</code> までのデータ部分を、コピーした内容で完全に上書きして保存します。</li>
+                    <li><strong>「GitHubに自動保存」</strong>ボタンをクリックすると、更新が完了します。</li>
                 </ol>
             </div>`;
     }
 
-    // --- Search Logic ---
     function performSearch() {
         const query = document.getElementById('search-input').value.toLowerCase().trim();
         const container = document.getElementById('search-results');
@@ -188,40 +185,41 @@
         }
     }
     
-    // --- Updater Tab Logic ---
     function populateUpdaterTab() {
         const container = document.getElementById('updater-content');
-        if (container.innerHTML !== '') return;
+        if (container.innerHTML) return;
         container.innerHTML = `
-            <div class="space-y-6">
+            <div class="space-y-8">
+                <div class="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                    <h3 class="text-lg font-semibold">初回設定：GitHub Personal Access Token (PAT)</h3>
+                    <p class="text-sm text-gray-700 mt-1">自動更新機能を利用するには、初回のみPATの設定が必要です。PATは、このツールがあなたに代わってGitHub上のファイルを安全に更新するための鍵です。</p>
+                    <p class="text-sm text-gray-700 mt-2">PATはブラウザのセッションストレージにのみ保存され、タブを閉じると消えるため安全です。</p>
+                    <div class="mt-4">
+                        <label for="github-pat" class="block text-sm font-medium text-gray-700">Personal Access Token (Fine-grained)</label>
+                        <input type="password" id="github-pat" class="mt-1 block w-full md:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="ghp_... または github_pat_...">
+                    </div>
+                </div>
+
                 <div>
                     <h3 class="text-lg font-semibold">1. チェックシートファイルをアップロード</h3>
-                    <p class="text-sm text-gray-600 mb-2">顧客から受領したファイル（Word, Excel, CSV, TXT等）を選択してください。</p>
-                    <input type="file" id="file-uploader" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    <input type="file" id="file-uploader" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
                 </div>
                 <div id="ai-parser-status" class="hidden"></div>
                 <div>
                     <h3 class="text-lg font-semibold">2. AIの解析結果を確認・編集</h3>
-                    <p class="text-sm text-gray-600 mb-2">AIが抽出したQ&A候補です。内容を修正し、カテゴリやキーワードを追記してください。</p>
-                    <div class="table-container">
-                        <table class="min-w-full">
-                           <thead class="bg-gray-50"><tr><th>質問</th><th>回答</th><th>大カテゴリ</th><th>中カテゴリ</th><th>キーワード</th><th>削除</th></tr></thead>
-                           <tbody id="update-table"></tbody>
-                        </table>
-                    </div>
+                    <div class="table-container"><table class="min-w-full"><thead class="bg-gray-50"><tr><th>質問</th><th>回答</th><th>大カテゴリ</th><th>中カテゴリ</th><th>キーワード</th><th>削除</th></tr></thead><tbody id="update-table"></tbody></table></div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold">3. 更新用コードを生成・反映</h3>
-                    <button id="generate-code-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600">更新用JavaScriptコードを生成</button>
-                    <div id="code-output-area" class="hidden mt-4">
-                        <p class="text-sm text-gray-600 mb-2">下のコードを全てコピーし、GitHubの <code>index.html</code> 内の既存データ部分に上書き保存してください。</p>
-                        <textarea id="code-output" class="w-full h-64 font-mono text-xs border rounded"></textarea>
-                    </div>
+                    <h3 class="text-lg font-semibold">3. GitHubに直接保存</h3>
+                    <button id="save-to-github-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700 disabled:bg-gray-400" disabled>GitHubに自動保存</button>
+                    <div id="github-save-status" class="mt-2 text-sm"></div>
                 </div>
             </div>`;
         
         document.getElementById('file-uploader').addEventListener('change', handleFileUpload);
-        document.getElementById('generate-code-btn').addEventListener('click', generateJsCode);
+        document.getElementById('save-to-github-btn').addEventListener('click', saveToGitHub);
+        document.getElementById('github-pat').value = sessionStorage.getItem('github_pat') || '';
+        document.getElementById('github-pat').addEventListener('input', (e) => sessionStorage.setItem('github_pat', e.target.value));
     }
 
     async function handleFileUpload(event) {
@@ -238,12 +236,101 @@
             const qaPairs = JSON.parse(extractedText);
             renderUpdateTable(qaPairs);
             statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析が完了しました。下の表で内容を確認・編集してください。</div>`;
+            document.getElementById('save-to-github-btn').disabled = false;
         } catch (error) {
             console.error('AI解析エラー:', error);
             statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラーが発生しました: ${error.message}</div>`;
         }
     }
     
+    async function saveToGitHub() {
+        const pat = sessionStorage.getItem('github_pat');
+        const statusDiv = document.getElementById('github-save-status');
+        if (!pat) {
+            statusDiv.innerHTML = `<p class="text-red-600">エラー: Personal Access Tokenが設定されていません。</p>`;
+            return;
+        }
+
+        statusDiv.innerHTML = `<p class="text-blue-600">GitHubに保存中... しばらくお待ちください。</p>`;
+        
+        try {
+            const updatedData = generateUpdatedDataArray();
+            const repoInfo = getRepoInfo();
+            const filePath = 'index.html';
+
+            const fileResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${filePath}`, {
+                headers: { 'Authorization': `token ${pat}`, 'Accept': 'application/vnd.github.v3+json' }
+            });
+            if (!fileResponse.ok) throw new Error('GitHubから現在のファイルを取得できませんでした。PATの権限を確認してください。');
+            const fileData = await fileResponse.json();
+            const currentContent = atob(fileData.content);
+            const currentSha = fileData.sha;
+
+            const newDataString = `const knowledgeBaseData = ${JSON.stringify(updatedData, null, 4)}`;
+            const newContent = currentContent.replace(/const knowledgeBaseData = \[[\s\S]*?\];/, newDataString);
+
+            const commitResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${filePath}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${pat}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+                body: JSON.stringify({
+                    message: `Update knowledge base via AI tool on ${new Date().toLocaleString()}`,
+                    content: btoa(unescape(encodeURIComponent(newContent))),
+                    sha: currentSha
+                })
+            });
+
+            if (!commitResponse.ok) {
+                const errorData = await commitResponse.json();
+                throw new Error(`GitHubへの保存に失敗しました: ${errorData.message}`);
+            }
+
+            statusDiv.innerHTML = `<p class="text-green-600">成功！ナレッジベースが正常に更新されました。ページをリロードして確認してください。</p>`;
+            alert('ナレッジベースが正常に更新されました！');
+            location.reload();
+
+        } catch (error) {
+            console.error('GitHub save error:', error);
+            statusDiv.innerHTML = `<p class="text-red-600">エラー: ${error.message}</p>`;
+        }
+    }
+
+    function generateUpdatedDataArray() {
+        const tableRows = document.querySelectorAll('#update-table tr');
+        const newEntries = [];
+        let maxId = knowledgeBaseData.reduce((max, item) => {
+            const idNum = parseInt((item.id || 'SEC-0000').split('-')[1]);
+            return idNum > max ? idNum : max;
+        }, 0);
+
+        tableRows.forEach(row => {
+            maxId++;
+            newEntries.push({
+                id: `SEC-${String(maxId).padStart(4, '0')}`,
+                question: row.querySelector('[name="question"]').value,
+                answer: row.querySelector('[name="answer"]').value,
+                daiCategory: row.querySelector('[name="daiCategory"]').value,
+                chuCategory: row.querySelector('[name="chuCategory"]').value,
+                keywords: row.querySelector('[name="keywords"]').value,
+                supplement: '',
+                department: '未定',
+                updated: new Date().toISOString().split('T')[0]
+            });
+        });
+        return [...knowledgeBaseData, ...newEntries];
+    }
+    
+    function getRepoInfo() {
+        const hostname = window.location.hostname;
+        const pathname = window.location.pathname;
+        if (hostname.endsWith('github.io')) {
+            const owner = hostname.split('.')[0];
+            const repo = pathname.split('/')[1];
+            if (!owner || !repo) throw new Error("リポジトリ情報をURLから特定できませんでした。");
+            return { owner, repo };
+        }
+        throw new Error("この機能はGitHub Pages上でのみ動作します。");
+    }
+
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -254,29 +341,12 @@
     }
 
     async function callGeminiForExtraction(base64, mimeType) {
-        const apiKey = ""; // APIキーは空のままにします
-        const systemPrompt = `あなたは、セキュリティチェックシートの文書から「質問」と「回答」のペアを抽出する専門家です。
-提供されたファイルの内容から、明確なQ&Aペアをすべて抽出し、以下のJSON形式の配列で出力してください。
-- 質問と回答のテキストのみを抽出してください。余分なメタ情報や番号は含めないでください。
-- 明確なQ&Aペアと判断できないテキストは無視してください。
-- 出力は必ずJSON配列のみにしてください。説明文や\`\`\`jsonは不要です。
-
-例:
-[
-  {"question": "ISMS認証は取得していますか？", "answer": "はい、ISO27001を取得済みです。"},
-  {"question": "データの保管場所は国内ですか？", "answer": "全て国内のデータセンターで保管しています。"}
-]`;
+        const apiKey = "";
+        const systemPrompt = `あなたは、セキュリティチェックシートの文書から「質問」と「回答」のペアを抽出する専門家です。提供されたファイルの内容から、明確なQ&Aペアをすべて抽出し、以下のJSON形式の配列で出力してください。\n- 質問と回答のテキストのみを抽出してください。余分なメタ情報や番号は含めないでください。\n- 明確なQ&Aペアと判断できないテキストは無視してください。\n- 出力は必ずJSON配列のみにしてください。説明文や\`\`\`jsonは不要です。\n\n例:\n[{"question": "ISMS認証は取得していますか？", "answer": "はい、ISO27001を取得済みです。"},{"question": "データの保管場所は国内ですか？", "answer": "全て国内のデータセンターで保管しています。"}]`;
 
         const payload = {
-            contents: [{
-                parts: [
-                    { text: systemPrompt },
-                    { inline_data: { mime_type: mimeType, data: base64 } }
-                ]
-            }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
+            contents: [{ parts: [{ text: systemPrompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+            generationConfig: { responseMimeType: "application/json" }
         };
 
         const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -295,8 +365,8 @@
 
     function renderUpdateTable(qaPairs) {
         const tableBody = document.getElementById('update-table');
-        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory))];
-        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory))];
+        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory).filter(Boolean))];
+        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory).filter(Boolean))];
 
         tableBody.innerHTML = qaPairs.map((pair, index) => `
             <tr id="row-${index}">
@@ -315,41 +385,6 @@
             </tr>
         `).join('');
     }
-
-    function generateJsCode() {
-        const tableRows = document.querySelectorAll('#update-table tr');
-        const newEntries = [];
-        let maxId = knowledgeBaseData.reduce((max, item) => {
-            const idNum = parseInt((item.id || 'SEC-0000').split('-')[1]);
-            return idNum > max ? idNum : max;
-        }, 0);
-
-        tableRows.forEach(row => {
-            maxId++;
-            const newEntry = {
-                id: `SEC-${String(maxId).padStart(4, '0')}`,
-                question: row.querySelector('[name="question"]').value,
-                answer: row.querySelector('[name="answer"]').value,
-                daiCategory: row.querySelector('[name="daiCategory"]').value,
-                chuCategory: row.querySelector('[name="chuCategory"]').value,
-                keywords: row.querySelector('[name="keywords"]').value,
-                supplement: '',
-                department: '未定',
-                updated: new Date().toISOString().split('T')[0]
-            };
-            newEntries.push(newEntry);
-        });
-
-        const updatedData = [...knowledgeBaseData, ...newEntries];
-        
-        // Generate the full JavaScript code block as a string
-        const codeString = `const knowledgeBaseData = ${JSON.stringify(updatedData, null, 4)};`;
-
-        document.getElementById('code-output').value = codeString;
-        document.getElementById('code-output-area').classList.remove('hidden');
-        alert('更新用のJavaScriptコードを生成しました。テキストエリアの内容をコピーしてください。');
-    }
-
 </script>
 </body>
 </html>
