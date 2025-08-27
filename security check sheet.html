@@ -18,9 +18,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #update-table input, #update-table select { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; }
         #update-table textarea { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; height: 100px; }
-        .tooltip { position: relative; display: inline-block; cursor: pointer; }
-        .tooltip .tooltiptext { visibility: hidden; width: 250px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -125px; opacity: 0; transition: opacity 0.3s; }
-        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -31,7 +28,7 @@
         </header>
 
         <div class="px-4 pt-4 border-b border-gray-200">
-            <nav class="flex space-x-2" id="tabs">
+            <nav class="flex flex-wrap space-x-2" id="tabs">
                 <button data-tab="search" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">① 検索＆回答</button>
                 <button data-tab="knowledge" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">② ナレッジベース</button>
                 <button data-tab="master" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">③ カテゴリマスタ</button>
@@ -159,7 +156,7 @@
                 </ol>
                 <h3>ナレッジの更新（AI支援による自動化）</h3>
                 <ol>
-                    <li><strong>【初回のみ】</strong>「⑤ ナレッジ更新支援 (AI)」タブで、<a href="https://github.com/settings/tokens?type=beta" target="_blank" class="text-blue-600 hover:underline">GitHub Personal Access Token (PAT)</a> を設定します。詳しい手順は別途ガイドを参照してください。</li>
+                    <li><strong>【初回のみ】</strong>「⑤ ナレッジ更新支援 (AI)」タブで、<a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 hover:underline">Google AI APIキー</a>と<a href="https://github.com/settings/tokens?type=beta" target="_blank" class="text-blue-600 hover:underline">GitHub PAT</a>を設定します。詳しい手順は別途ガイドを参照してください。</li>
                     <li><strong>「⑤ ナレッジ更新支援 (AI)」タブ</strong> を開きます。</li>
                     <li>顧客から受領したチェックシートファイルをアップロードします。</li>
                     <li>AIがファイル内容を解析し、Q&A候補を抽出します。しばらくお待ちください。</li>
@@ -191,12 +188,17 @@
         container.innerHTML = `
             <div class="space-y-8">
                 <div class="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-                    <h3 class="text-lg font-semibold">初回設定：GitHub Personal Access Token (PAT)ここは絶対にいじらないでください！</h3>
-                    <p class="text-sm text-gray-700 mt-1">自動更新機能を利用するには、初回のみPATの設定が必要です。PATは、このツールがあなたに代わってGitHub上のファイルを安全に更新するための鍵です。</p>
-                    <p class="text-sm text-gray-700 mt-2">PATはブラウザのセッションストレージにのみ保存され、タブを閉じると消えるため安全です。</p>
-                    <div class="mt-4">
-                        <label for="github-pat" class="block text-sm font-medium text-gray-700">Personal Access Token (Fine-grained)</label>
-                        <input type="password" id="github-pat" class="mt-1 block w-full md:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="ghp_... または github_pat_...">
+                    <h3 class="text-lg font-semibold">初回設定：各種APIキーの設定</h3>
+                    <p class="text-sm text-gray-700 mt-1">AI解析とGitHub自動更新機能を利用するには、初回のみ各種キーの設定が必要です。キーはブラウザのセッションストレージにのみ保存され、タブを閉じると消えるため安全です。</p>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="google-api-key" class="block text-sm font-medium text-gray-700">Google AI APIキー</label>
+                            <input type="password" id="google-api-key" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="AIzaSy...">
+                        </div>
+                        <div>
+                            <label for="github-pat" class="block text-sm font-medium text-gray-700">GitHub Personal Access Token (PAT)</label>
+                            <input type="password" id="github-pat" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="github_pat_...">
+                        </div>
                     </div>
                 </div>
 
@@ -218,6 +220,10 @@
         
         document.getElementById('file-uploader').addEventListener('change', handleFileUpload);
         document.getElementById('save-to-github-btn').addEventListener('click', saveToGitHub);
+        
+        document.getElementById('google-api-key').value = sessionStorage.getItem('google_api_key') || '';
+        document.getElementById('google-api-key').addEventListener('input', (e) => sessionStorage.setItem('google_api_key', e.target.value));
+        
         document.getElementById('github-pat').value = sessionStorage.getItem('github_pat') || '';
         document.getElementById('github-pat').addEventListener('input', (e) => sessionStorage.setItem('github_pat', e.target.value));
     }
@@ -243,6 +249,56 @@
         }
     }
     
+    async function callGeminiForExtraction(base64, mimeType) {
+        const apiKey = sessionStorage.getItem('google_api_key');
+        if (!apiKey) {
+            throw new Error("Google AI APIキーが設定されていません。");
+        }
+        
+        const systemPrompt = `あなたは、セキュリティチェックシートの文書から「質問」と「回答」のペアを抽出する専門家です。提供されたファイルの内容から、明確なQ&Aペアをすべて抽出し、以下のJSON形式の配列で出力してください。\n- 質問と回答のテキストのみを抽出してください。余分なメタ情報や番号は含めないでください。\n- 明確なQ&Aペアと判断できないテキストは無視してください。\n- 出力は必ずJSON配列のみにしてください。説明文や\`\`\`jsonは不要です。\n\n例:\n[{"question": "ISMS認証は取得していますか？", "answer": "はい、ISO27001を取得済みです。"},{"question": "データの保管場所は国内ですか？", "answer": "全て国内のデータセンターで保管しています。"}]`;
+
+        const payload = {
+            contents: [{ parts: [{ text: systemPrompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        };
+
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`API Error: ${errorBody.error.message}`);
+        }
+        const result = await response.json();
+        return result.candidates[0].content.parts[0].text;
+    }
+
+    function renderUpdateTable(qaPairs) {
+        const tableBody = document.getElementById('update-table');
+        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory).filter(Boolean))];
+        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory).filter(Boolean))];
+
+        tableBody.innerHTML = qaPairs.map((pair, index) => `
+            <tr id="row-${index}">
+                <td><textarea name="question">${pair.question || ''}</textarea></td>
+                <td><textarea name="answer">${pair.answer || ''}</textarea></td>
+                <td>
+                    <input list="dai-cat-list" name="daiCategory" placeholder="大カテゴリ">
+                    <datalist id="dai-cat-list">${daiCategories.map(c => `<option value="${c}">`).join('')}</datalist>
+                </td>
+                <td>
+                    <input list="chu-cat-list" name="chuCategory" placeholder="中カテゴリ">
+                    <datalist id="chu-cat-list">${chuCategories.map(c => `<option value="${c}">`).join('')}</datalist>
+                </td>
+                <td><input type="text" name="keywords" placeholder="カンマ区切り"></td>
+                <td><button onclick="document.getElementById('row-${index}').remove()" class="text-red-500 hover:text-red-700">✖</button></td>
+            </tr>
+        `).join('');
+    }
+
     async function saveToGitHub() {
         const pat = sessionStorage.getItem('github_pat');
         const statusDiv = document.getElementById('github-save-status');
@@ -328,7 +384,9 @@
             if (!owner || !repo) throw new Error("リポジトリ情報をURLから特定できませんでした。");
             return { owner, repo };
         }
-        throw new Error("この機能はGitHub Pages上でのみ動作します。");
+        // For local development or other environments
+        console.warn("Could not determine repository info from URL. Using placeholder. GitHub save will fail.");
+        return { owner: "YOUR_USERNAME", repo: "YOUR_REPONAME" };
     }
 
     function fileToBase64(file) {
@@ -338,52 +396,6 @@
             reader.onload = () => resolve(reader.result.split(',')[1]);
             reader.onerror = error => reject(error);
         });
-    }
-
-    async function callGeminiForExtraction(base64, mimeType) {
-        const apiKey = "";
-        const systemPrompt = `あなたは、セキュリティチェックシートの文書から「質問」と「回答」のペアを抽出する専門家です。提供されたファイルの内容から、明確なQ&Aペアをすべて抽出し、以下のJSON形式の配列で出力してください。\n- 質問と回答のテキストのみを抽出してください。余分なメタ情報や番号は含めないでください。\n- 明確なQ&Aペアと判断できないテキストは無視してください。\n- 出力は必ずJSON配列のみにしてください。説明文や\`\`\`jsonは不要です。\n\n例:\n[{"question": "ISMS認証は取得していますか？", "answer": "はい、ISO27001を取得済みです。"},{"question": "データの保管場所は国内ですか？", "answer": "全て国内のデータセンターで保管しています。"}]`;
-
-        const payload = {
-            contents: [{ parts: [{ text: systemPrompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-
-        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(`API Error: ${errorBody.error.message}`);
-        }
-        const result = await response.json();
-        return result.candidates[0].content.parts[0].text;
-    }
-
-    function renderUpdateTable(qaPairs) {
-        const tableBody = document.getElementById('update-table');
-        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory).filter(Boolean))];
-        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory).filter(Boolean))];
-
-        tableBody.innerHTML = qaPairs.map((pair, index) => `
-            <tr id="row-${index}">
-                <td><textarea name="question">${pair.question || ''}</textarea></td>
-                <td><textarea name="answer">${pair.answer || ''}</textarea></td>
-                <td>
-                    <input list="dai-cat-list" name="daiCategory" placeholder="大カテゴリ">
-                    <datalist id="dai-cat-list">${daiCategories.map(c => `<option value="${c}">`).join('')}</datalist>
-                </td>
-                <td>
-                    <input list="chu-cat-list" name="chuCategory" placeholder="中カテゴリ">
-                    <datalist id="chu-cat-list">${chuCategories.map(c => `<option value="${c}">`).join('')}</datalist>
-                </td>
-                <td><input type="text" name="keywords" placeholder="カンマ区切り"></td>
-                <td><button onclick="document.getElementById('row-${index}').remove()" class="text-red-500 hover:text-red-700">✖</button></td>
-            </tr>
-        `).join('');
     }
 </script>
 </body>
