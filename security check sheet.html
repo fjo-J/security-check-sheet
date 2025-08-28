@@ -178,7 +178,7 @@
                 </ol>
                 <h3>ナレッジとロードマップの一括更新</h3>
                  <ol>
-                    <li><strong>【初回のみ】</strong>「⑥ AI一括更新」タブで、必要なAPIキーを設定します。</li>
+                    <li><strong>【初回のみ】</strong>「⑥ AI一括更新」タブで、必要なAPIキーとGitHub情報を設定します。</li>
                     <li><strong>「⑥ AI一括更新」タブ</strong> を開きます。</li>
                     <li>チェックシートファイルを1つアップロードします。<strong>(Excel, CSV, TXT, PDF, 画像ファイルなどに対応)</strong></li>
                     <li>AIがファイルから「対応済み項目（ナレッジ）」と「未対応項目（ロードマップ）」を自動で分類・抽出します。</li>
@@ -194,8 +194,8 @@
         container.innerHTML = `
             <div class="space-y-8">
                 <div class="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-                    <h3 class="text-lg font-semibold">初回設定：各種APIキーの設定</h3>
-                    <p class="text-sm text-gray-700 mt-1">AI解析とGitHub自動更新機能を利用するには、初回のみ各種キーの設定が必要です。</p>
+                    <h3 class="text-lg font-semibold">初回設定：各種APIキー・GitHub情報の設定</h3>
+                    <p class="text-sm text-gray-700 mt-1">AI解析とGitHub自動更新機能を利用するには、初回のみ以下の情報を設定してください。</p>
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="google-api-key" class="block text-sm font-medium text-gray-700">Google AI APIキー</label>
@@ -204,6 +204,14 @@
                         <div>
                             <label for="github-pat" class="block text-sm font-medium text-gray-700">GitHub Personal Access Token (PAT)</label>
                             <input type="password" id="github-pat" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="github_pat_...">
+                        </div>
+                        <div>
+                            <label for="github-user" class="block text-sm font-medium text-gray-700">GitHub Username</label>
+                            <input type="text" id="github-user" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例: fjo-j">
+                        </div>
+                        <div>
+                            <label for="github-repo" class="block text-sm font-medium text-gray-700">GitHub Repository Name</label>
+                            <input type="text" id="github-repo" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例: security-check-sheet">
                         </div>
                     </div>
                 </div>
@@ -239,6 +247,12 @@
         
         document.getElementById('github-pat').value = sessionStorage.getItem('github_pat') || '';
         document.getElementById('github-pat').addEventListener('input', (e) => sessionStorage.setItem('github_pat', e.target.value));
+
+        document.getElementById('github-user').value = sessionStorage.getItem('github_user') || '';
+        document.getElementById('github-user').addEventListener('input', (e) => sessionStorage.setItem('github_user', e.target.value));
+
+        document.getElementById('github-repo').value = sessionStorage.getItem('github_repo') || '';
+        document.getElementById('github-repo').addEventListener('input', (e) => sessionStorage.setItem('github_repo', e.target.value));
     }
 
     function performSearch() {
@@ -270,9 +284,8 @@
 
         try {
             let fileContentForAI;
-            let mimeTypeForAI;
+            let mimeTypeForAI = 'text/plain'; // Default to text for converted content
 
-            // Excel file handling
             if (file.name.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer);
@@ -283,9 +296,7 @@
                     fullText += '\n\n';
                 });
                 fileContentForAI = btoa(unescape(encodeURIComponent(fullText)));
-                mimeTypeForAI = 'text/plain';
             } else {
-                // Handle other supported types
                 const supportedTypes = ['text/csv', 'text/plain', 'application/pdf', 'image/jpeg', 'image/png'];
                 if (!supportedTypes.includes(file.type)) {
                     throw new Error(`サポートされていないファイル形式です: ${file.name.split('.').pop()}`);
@@ -294,9 +305,11 @@
                 mimeTypeForAI = file.type;
             }
             
-            const systemPrompt = `あなたはセキュリティ専門家です。提供された文書からQ&Aを抽出し、「対応済み」と「未対応」に分類してください。
-- 「対応済み」は、肯定的・事実を述べる回答（はい、実施済み、〇〇です、など）を持つ項目です。
-- 「未対応」は、否定的・未実施の回答（いいえ、未対応、×、No、など）を持つ項目です。
+            const systemPrompt = `あなたはセキュリティ専門家です。提供された文書（表形式のデータを含む可能性があります）からQ&Aを抽出し、「対応済み」と「未対応」に分類してください。
+- 文書を行ごとに解釈し、質問と回答のペアを探してください。
+- 「対応済み」は、肯定的・事実を述べる回答（はい、実施済み、〇、Yesなど）を持つ項目です。
+- 「未対応」は、否定的・未実施の回答（いいえ、未対応、×、No、- など）を持つ項目です。
+- どちらにも分類できない行や、ヘッダー、無関係なテキストは無視してください。
 以下のJSON形式で出力してください。説明文は不要です。
 {
   "knowledgeItems": [{"question": "質問文", "answer": "肯定的な回答文"}],
@@ -305,13 +318,18 @@
             
             const extractedText = await callGeminiForExtraction(fileContentForAI, mimeTypeForAI, systemPrompt);
             const result = JSON.parse(extractedText);
+            const knowledgeItems = result.knowledgeItems || [];
+            const roadmapItems = result.roadmapItems || [];
 
-            renderUpdateTable(result.knowledgeItems || []);
-            renderRoadmapReviewTable(result.roadmapItems || []);
-            
-            statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析・分類が完了しました。下の2つの表で内容を確認・編集してください。</div>`;
-            reviewArea.classList.remove('hidden');
-
+            if (knowledgeItems.length === 0 && roadmapItems.length === 0) {
+                 statusContainer.innerHTML = `<div class="p-4 bg-blue-50 text-blue-800 rounded-md">AIによる解析が完了しましたが、追加候補となるQ&A項目は見つかりませんでした。ファイルの内容を確認してください。</div>`;
+                 reviewArea.classList.add('hidden');
+            } else {
+                renderUpdateTable(knowledgeItems);
+                renderRoadmapReviewTable(roadmapItems);
+                statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析・分類が完了しました。下の2つの表で内容を確認・編集してください。</div>`;
+                reviewArea.classList.remove('hidden');
+            }
         } catch (error) {
             console.error('AI解析エラー:', error);
             statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラーが発生しました: ${error.message}</div>`;
@@ -369,16 +387,13 @@
     }
 
     async function saveAllToGitHub() {
-        const pat = sessionStorage.getItem('github_pat');
         const statusDiv = document.getElementById('github-save-status');
-        if (!pat) {
-            statusDiv.innerHTML = `<p class="text-red-600">エラー: GitHub Personal Access Tokenが設定されていません。</p>`;
-            return;
-        }
-
-        statusDiv.innerHTML = `<p class="text-blue-600">GitHubに保存中...</p>`;
-        
         try {
+            const pat = sessionStorage.getItem('github_pat');
+            if (!pat) throw new Error("GitHub Personal Access Tokenが設定されていません。");
+
+            statusDiv.innerHTML = `<p class="text-blue-600">GitHubに保存中...</p>`;
+            
             const updatedKnowledgeData = generateUpdatedKnowledgeDataArray();
             const updatedRoadmapData = generateNewRoadmapItems();
             
@@ -386,7 +401,7 @@
             const filePath = 'index.html';
 
             const fileResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${filePath}`, { headers: { 'Authorization': `token ${pat}` }});
-            if (!fileResponse.ok) throw new Error('GitHubからファイルを取得できませんでした。');
+            if (!fileResponse.ok) throw new Error('GitHubからファイルを取得できませんでした。PATの権限やリポジトリ情報を確認してください。');
             const fileData = await fileResponse.json();
             let currentContent = atob(fileData.content);
 
@@ -461,16 +476,12 @@
     }
     
     function getRepoInfo() {
-        const hostname = window.location.hostname;
-        const pathname = window.location.pathname;
-        if (hostname.endsWith('github.io')) {
-            const owner = hostname.split('.')[0];
-            const repo = pathname.split('/')[1];
-            if (!owner || !repo) throw new Error("リポジトリ情報をURLから特定できませんでした。");
-            return { owner, repo };
+        const owner = sessionStorage.getItem('github_user');
+        const repo = sessionStorage.getItem('github_repo');
+        if (!owner || !repo) {
+            throw new Error("GitHubのユーザー名とリポジトリ名が設定されていません。");
         }
-        console.warn("ローカル環境のため、GitHubの保存機能は動作しません。");
-        return { owner: "YOUR_USERNAME", repo: "YOUR_REPONAME" };
+        return { owner, repo };
     }
 
     function fileToBase64(file) {
