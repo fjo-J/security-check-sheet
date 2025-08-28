@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>セキュリティチェックシート AIナレッジベース & ロードマップ</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS library for reading Excel files -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; }
@@ -16,10 +14,6 @@
         th, td { padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; white-space: normal; word-wrap: break-word; }
         th { background-color: #f3f4f6; font-weight: 700; position: sticky; top: 0; z-index: 1; cursor: pointer; }
         .search-box { position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 1rem; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #update-table input, #update-table select, #roadmap-review-table input, #roadmap-review-table select { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; }
-        #update-table textarea, #roadmap-review-table textarea { width: 100%; padding: 4px; border: 1px solid #d1d5db; border-radius: 4px; height: 100px; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -36,7 +30,6 @@
                 <button data-tab="roadmap" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">③ ロードマップ</button>
                 <button data-tab="master" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">④ カテゴリマスタ</button>
                 <button data-tab="manual" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">⑤ 使い方</button>
-                <button data-tab="updater" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-t-md">⑥ AI一括更新</button>
             </nav>
         </div>
 
@@ -45,7 +38,6 @@
             <div id="knowledge-content" class="tab-content hidden"></div>
             <div id="roadmap-content" class="tab-content hidden"></div>
             <div id="master-content" class="tab-content hidden"></div>
-            <div id="updater-content" class="tab-content hidden"></div>
             <div id="manual-content" class="tab-content hidden"></div>
         </main>
     </div>
@@ -55,14 +47,25 @@
     let knowledgeBaseData = [
         { "id": "SEC-0001", "daiCategory": "組織的セキュリティ", "chuCategory": "情報セキュリティ認証", "question": "ISMS (ISO/IEC 27001) など、第三者による情報セキュリティ認証を取得していますか？", "keywords": "ISMS,ISO27001,認証,Pマーク,プライバシーマーク", "answer": "はい。当社は情報セキュリティマネジメントシステム（ISMS）の国際規格である「ISO/IEC 27001」の認証を取得しております。", "supplement": "認証範囲や取得日などの詳細情報が必要な場合は、別途お問い合わせください。", "department": "情報システム部", "updated": "2025/08/27" },
         { "id": "SEC-0002", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "情報漏洩やサービス停止など、セキュリティインシデント発生時の対処方法は確立されていますか？", "keywords": "インシデント,障害,漏洩,サービス停止,BCP", "answer": "はい。情報セキュリティインシデント対応規程を定め、インシデントの検知、報告、分析、復旧、再発防止策までの一連のプロセスを定義しています。重大なインシデント発生時には、経営層を含むインシデントレスポンスチームを招集し、迅速に対応します。", "supplement": "インシデント対応フロー図を別途ご提示可能です。", "department": "情報システム部", "updated": "2025/08/27" },
+        { "id": "SEC-0003", "daiCategory": "技術的セキュリティ", "chuCategory": "脆弱性管理", "question": "セキュリティ専門部門が最新の脆弱性情報を収集し、本サービスに与える影響を確認し、定められたルールに従い対処を実施されていますか？", "keywords": "脆弱性,パッチ,アップデート,CVE", "answer": "はい。セキュリティ専門チームが複数の情報源から常に最新の脆弱性情報を収集しています。検知した脆弱性については、直ちにリスク評価を行い、本サービスへの影響度に応じて、計画に基づき修正パッチの適用などの対策を実施しています。", "supplement": "利用している脆弱性情報源や、リスク評価基準については、個別にお問い合わせください。", "department": "開発部", "updated": "2025/08/28" },
+        { "id": "SEC-0004", "daiCategory": "技術的セキュリティ", "chuCategory": "脆弱性管理", "question": "定期的、さらに必要に応じて適宜に専門の脆弱性診断ツールを用いて、OSやミドルウェア等の検査を実施していますか？", "keywords": "脆弱性診断,スキャン,OS,ミドルウェア", "answer": "はい。システム全体に対して定期的な脆弱性スキャンを実施しています。また、システムの構成に大きな変更があった場合や、重大な脆弱性が公表された場合には、必要に応じて臨時の診断も実施しています。", "supplement": "", "department": "開発部", "updated": "2025/08/28" },
+        { "id": "SEC-0005", "daiCategory": "技術的セキュリティ", "chuCategory": "不正アクセス対策", "question": "不正なアクティビティを阻止するためのIDS/IPSなどの仕組みを導入していますか？", "keywords": "IDS,IPS,不正侵入検知,不正侵入防止", "answer": "はい。サービスを提供するネットワークの境界にIDS/IPS（不正侵入検知・防御システム）を導入しており、不正な通信や攻撃の兆候を24時間365日体制で監視・ブロックしています。", "supplement": "", "department": "情報システム部", "updated": "2025/08/28" },
+        { "id": "SEC-0006", "daiCategory": "技術的セキュリティ", "chuCategory": "アクセス制御", "question": "データへのアクセスについてアクセス権限が管理されているか / 誰もがアクセスできる状態になっていないか", "keywords": "アクセス権,権限管理,認可", "answer": "はい。データへのアクセスは、業務上必要な担当者のみに限定する「最小権限の原則」に基づき、厳格に管理されています。全てのアクセスは役割ベースのアクセスコントロール（RBAC）によって制御されています。", "supplement": "", "department": "情報システム部", "updated": "2025/08/28" },
+        { "id": "SEC-0007", "daiCategory": "技術的セキュリティ", "chuCategory": "ログ管理", "question": "データへのアクセスについてアクセスログや操作ログが取得されているか", "keywords": "ログ,監査ログ,操作履歴", "answer": "はい。誰が、いつ、どのデータにアクセスし、どのような操作を行ったか、詳細なアクセスログ及び操作ログをすべて記録しています。これらのログは改ざん不可能な状態で安全に保管され、定期的にレビューされています。", "supplement": "ログの保管期間は原則として1年以上です。", "department": "情報システム部", "updated": "2025/08/28" },
+        { "id": "SEC-0008", "daiCategory": "技術的セキュリティ", "chuCategory": "通信の保護", "question": "通信中のデータは保護されているか", "keywords": "暗号化,TLS,SSL,HTTPS", "answer": "はい。利用者と当社サービス間のすべての通信は、TLS 1.2以上の強力な暗号化技術を用いて保護されています。", "supplement": "", "department": "開発部", "updated": "2025/08/28" },
+        { "id": "SEC-0009", "daiCategory": "技術的セキュリティ", "chuCategory": "マルウェア対策", "question": "マルウェア対策は行っているか", "keywords": "ウイルス対策,アンチウイルス,マルウェア", "answer": "はい。サービスを提供する全てのサーバーに商用のアンチマルウェアソフトを導入しており、定義ファイルは常に最新の状態に保たれています。また、定期的なシステムスキャンも実施しています。", "supplement": "", "department": "情報システム部", "updated": "2025/08/28" }
     ];
     let roadmapData = [
         { "id": "RM-0001", "question": "多要素認証は導入されていますか？", "current_state": "現在はID/パスワード認証のみ", "status": "未対応", "priority": "高", "department": "開発部", "target_date": "2025-12-31", "completion_date": "", "certification": "", "notes": "次期バージョンで実装を検討" },
-        { "id": "RM-0002", "question": "SOC2 Type2レポートは取得していますか？", "current_state": "未取得", "status": "未対応", "priority": "中", "department": "情報システム部", "target_date": "2026-03-31", "completion_date": "", "certification": "SOC2 Type2", "notes": "監査法人と協議開始予定" }
+        { "id": "RM-0002", "question": "SOC2 Type2レポートは取得していますか？", "current_state": "未取得", "status": "未対応", "priority": "中", "department": "情報システム部", "target_date": "2026-03-31", "completion_date": "", "certification": "SOC2 Type2", "notes": "監査法人と協議開始予定" },
+        { "id": "RM-0003", "question": "責任分界点やネットワーク構成、システム構成が図示されている、簡単なシステム構成図の提出は可能か。", "current_state": "個別案件ごとに作成・提出しているが、汎用的な資料は未整備。", "status": "未対応", "priority": "中", "department": "営業企画部", "target_date": "2026-01-31", "completion_date": "", "certification": "", "notes": "標準的な構成図とカスタマイズ範囲を示す資料を作成する。" },
+        { "id": "RM-0004", "question": "脆弱性対策に関するホワイトペーパーの提示は可能か。", "current_state": "ホワイトペーパーは未作成。", "status": "未対応", "priority": "低", "department": "マーケティング部", "target_date": "2026-06-30", "completion_date": "", "certification": "", "notes": "当社のセキュリティへの取り組みをまとめた資料を作成し、Webサイトで公開することを検討。" },
+        { "id": "RM-0005", "question": "データはどこで保持されているか", "current_state": "現在、契約しているIaaS/PaaS事業者のデータセンター所在地に依存。国内の複数リージョンを利用。", "status": "対応中", "priority": "中", "department": "情報システム部", "target_date": "2025-12-31", "completion_date": "", "certification": "", "notes": "データ保管場所を明記したドキュメントを作成中。" },
+        { "id": "RM-0006", "question": "サービスで取り扱う情報(データ)の著作権は、サービス提供社に帰属しないようになっているか？", "current_state": "利用規約に明記済みだが、より平易な表現での説明資料がない。", "status": "未対応", "priority": "低", "department": "法務部", "target_date": "2026-04-30", "completion_date": "", "certification": "", "notes": "FAQページなどに著作権の帰属に関する項目を追加する。" },
+        { "id": "RM-0007", "question": "入力した個人情報などのデータが別の第三者に利用されることはないか", "current_state": "プライバシーポリシーに記載済みだが、具体的な利用目的の範囲が分かりにくいとの指摘がある。", "status": "未対応", "priority": "中", "department": "法務部", "target_date": "2026-02-28", "completion_date": "", "certification": "", "notes": "プライバシーポリシーの改訂を検討。" },
+        { "id": "RM-0008", "question": "CRYPTREC暗号リストに記載されている暗号を使用して通信・データ保管が暗号化されているか。", "current_state": "通信はTLS 1.2以上で対応済み。保管データの暗号化アルゴリズムについて、CRYPTRECリストとの対応を明記した資料がない。", "status": "未対応", "priority": "中", "department": "開発部", "target_date": "2026-03-31", "completion_date": "", "certification": "", "notes": "利用している暗号化技術とCRYPTRECリストの対照表を作成する。" }
     ];
 
-    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
-    
     document.addEventListener('DOMContentLoaded', initializeApp);
 
     function initializeApp() {
@@ -86,10 +89,12 @@
                     knowledge: populateKnowledgeBase,
                     roadmap: populateRoadmapTab,
                     master: populateCategoryMaster,
-                    updater: populateUpdaterTab,
                     manual: populateManual
                 };
-                populateFunctions[targetId]();
+                // Check if the function exists before calling it
+                if (populateFunctions[targetId]) {
+                    populateFunctions[targetId]();
+                }
             });
         });
     }
@@ -170,89 +175,18 @@
         container.innerHTML = `
             <h2 class="text-xl font-semibold text-gray-800 mb-4">使い方・運用フロー</h2>
             <div class="space-y-6 text-gray-700 prose max-w-none">
-                <p>このツールは、セキュリティチェックシートへの回答業務と、未対応項目の管理を効率化するためのツールです。</p>
+                <p>このツールは、セキュリティチェックシートへの回答業務を効率化するための、社内向けナレッジベースです。</p>
                 <h3>ナレッジの検索と利用</h3>
                 <ol>
                     <li><strong>「① 検索＆回答」タブ</strong> を開きます。</li>
-                    <li>上部の検索ボックスに、顧客からの質問や関連キーワードを入力します。</li>
+                    <li>上部の検索ボックスに、顧客からの質問や関連キーワードを入力し、過去の回答事例を検索します。</li>
                 </ol>
-                <h3>ナレッジとロードマップの一括更新</h3>
-                 <ol>
-                    <li><strong>【初回のみ】</strong>「⑥ AI一括更新」タブで、必要なAPIキーとGitHub情報を設定します。</li>
-                    <li><strong>「⑥ AI一括更新」タブ</strong> を開きます。</li>
-                    <li>チェックシートファイルを1つアップロードします。<strong>(Excel, CSV, TXT, PDF, 画像ファイルなどに対応)</strong></li>
-                    <li>AIがファイルから「対応済み項目（ナレッジ）」と「未対応項目（ロードマップ）」を自動で分類・抽出します。</li>
-                    <li>抽出された内容を2つの表で確認し、必要に応じて修正・追記します。</li>
-                    <li><strong>「GitHubに一括保存」</strong>ボタンをクリックすると、ナレッジベースとロードマップの両方が一度に更新されます。</li>
+                <h3>ナレッジとロードマップの更新</h3>
+                <ol>
+                    <li>新しいチェックシートのファイルを受け取ったら、<strong>このチャット画面にファイルをアップロードしてください。</strong></li>
+                    <li>AI（私）がファイル内容を分析し、ナレッジベースとロードマップを更新した新しいツールを提供します。</li>
                 </ol>
             </div>`;
-    }
-
-    function populateUpdaterTab() {
-        const container = document.getElementById('updater-content');
-        if (container.innerHTML) return;
-        container.innerHTML = `
-            <div class="space-y-8">
-                <div class="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
-                    <h3 class="text-lg font-semibold">初回設定：各種APIキー・GitHub情報の設定</h3>
-                    <p class="text-sm text-gray-700 mt-1">AI解析とGitHub自動更新機能を利用するには、初回のみ以下の情報を設定してください。</p>
-                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="google-api-key" class="block text-sm font-medium text-gray-700">Google AI APIキー</label>
-                            <input type="password" id="google-api-key" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="AIzaSy...">
-                        </div>
-                        <div>
-                            <label for="github-pat" class="block text-sm font-medium text-gray-700">GitHub Personal Access Token (PAT)</label>
-                            <input type="password" id="github-pat" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="github_pat_...">
-                        </div>
-                        <div>
-                            <label for="github-user" class="block text-sm font-medium text-gray-700">GitHub Username</label>
-                            <input type="text" id="github-user" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例: fjo-j">
-                        </div>
-                        <div>
-                            <label for="github-repo" class="block text-sm font-medium text-gray-700">GitHub Repository Name</label>
-                            <input type="text" id="github-repo" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例: security-check-sheet">
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold">1. チェックシートファイルをアップロード</h3>
-                    <p class="text-sm text-gray-600">AIがファイルから「対応済み」「未対応」を自動で分類・抽出します。<br><strong>(対応形式: .xlsx, .csv, .txt, .pdf, .png, .jpg など)</strong></p>
-                    <input type="file" id="file-uploader" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                </div>
-                <div id="ai-parser-status" class="hidden"></div>
-                
-                <div id="review-area" class="hidden space-y-8">
-                    <div>
-                        <h3 class="text-lg font-semibold">2. ナレッジベース追加候補（対応済み項目）</h3>
-                        <div class="table-container"><table class="min-w-full"><thead class="bg-gray-50"><tr><th>質問</th><th>回答</th><th>大カテゴリ</th><th>中カテゴリ</th><th>キーワード</th><th>削除</th></tr></thead><tbody id="update-table"></tbody></table></div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold">3. ロードマップ追加候補（未対応項目）</h3>
-                        <div class="table-container"><table class="min-w-full"><thead class="bg-gray-50"><tr><th>項目名</th><th>現状(AI抽出)</th><th>ステータス</th><th>優先度</th><th>担当部署</th><th>必要な外部認証</th><th>削除</th></tr></thead><tbody id="roadmap-review-table"></tbody></table></div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold">4. GitHubに一括保存</h3>
-                        <button id="save-to-github-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700">ナレッジとロードマップを両方更新</button>
-                        <div id="github-save-status" class="mt-2 text-sm"></div>
-                    </div>
-                </div>
-            </div>`;
-        
-        document.getElementById('file-uploader').addEventListener('change', handleFileUpload);
-        document.getElementById('save-to-github-btn').addEventListener('click', saveAllToGitHub);
-        
-        document.getElementById('google-api-key').value = sessionStorage.getItem('google_api_key') || '';
-        document.getElementById('google-api-key').addEventListener('input', (e) => sessionStorage.setItem('google_api_key', e.target.value));
-        
-        document.getElementById('github-pat').value = sessionStorage.getItem('github_pat') || '';
-        document.getElementById('github-pat').addEventListener('input', (e) => sessionStorage.setItem('github_pat', e.target.value));
-
-        document.getElementById('github-user').value = sessionStorage.getItem('github_user') || '';
-        document.getElementById('github-user').addEventListener('input', (e) => sessionStorage.setItem('github_user', e.target.value));
-
-        document.getElementById('github-repo').value = sessionStorage.getItem('github_repo') || '';
-        document.getElementById('github-repo').addEventListener('input', (e) => sessionStorage.setItem('github_repo', e.target.value));
     }
 
     function performSearch() {
@@ -269,228 +203,6 @@
                 <tr><td>${item.id||''}</td><td>${(item.daiCategory||'') + ' > ' + (item.chuCategory||'')}</td><td>${item.question||''}</td><td>${item.answer||''}</td><td>${item.supplement||''}</td></tr>
             `).join('');
         }
-    }
-
-    async function handleFileUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const statusContainer = document.getElementById('ai-parser-status');
-        const reviewArea = document.getElementById('review-area');
-        
-        statusContainer.innerHTML = `<div class="flex items-center space-x-2 p-4 bg-blue-50 rounded-md"><div class="loader"></div><p>AIがファイルを解析中です...</p></div>`;
-        statusContainer.classList.remove('hidden');
-        reviewArea.classList.add('hidden');
-
-        try {
-            let fileContentForAI;
-            let mimeTypeForAI = 'text/plain'; // Default to text for converted content
-
-            if (file.name.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-                const arrayBuffer = await file.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer);
-                let fullText = '';
-                workbook.SheetNames.forEach(sheetName => {
-                    fullText += `--- シート: ${sheetName} ---\n\n`;
-                    fullText += XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-                    fullText += '\n\n';
-                });
-                fileContentForAI = btoa(unescape(encodeURIComponent(fullText)));
-            } else {
-                const supportedTypes = ['text/csv', 'text/plain', 'application/pdf', 'image/jpeg', 'image/png'];
-                if (!supportedTypes.includes(file.type)) {
-                    throw new Error(`サポートされていないファイル形式です: ${file.name.split('.').pop()}`);
-                }
-                fileContentForAI = await fileToBase64(file);
-                mimeTypeForAI = file.type;
-            }
-            
-            const systemPrompt = `あなたはセキュリティ専門家です。提供された文書（表形式のデータを含む可能性があります）からQ&Aを抽出し、「対応済み」と「未対応」に分類してください。
-- 文書を行ごとに解釈し、質問と回答のペアを探してください。
-- 「対応済み」は、肯定的・事実を述べる回答（はい、実施済み、〇、Yesなど）を持つ項目です。
-- 「未対応」は、否定的・未実施の回答（いいえ、未対応、×、No、- など）を持つ項目です。
-- どちらにも分類できない行や、ヘッダー、無関係なテキストは無視してください。
-以下のJSON形式で出力してください。説明文は不要です。
-{
-  "knowledgeItems": [{"question": "質問文", "answer": "肯定的な回答文"}],
-  "roadmapItems": [{"question": "質問文", "answer": "否定的な回答文"}]
-}`;
-            
-            const extractedText = await callGeminiForExtraction(fileContentForAI, mimeTypeForAI, systemPrompt);
-            const result = JSON.parse(extractedText);
-            const knowledgeItems = result.knowledgeItems || [];
-            const roadmapItems = result.roadmapItems || [];
-
-            if (knowledgeItems.length === 0 && roadmapItems.length === 0) {
-                 statusContainer.innerHTML = `<div class="p-4 bg-blue-50 text-blue-800 rounded-md">AIによる解析が完了しましたが、追加候補となるQ&A項目は見つかりませんでした。ファイルの内容を確認してください。</div>`;
-                 reviewArea.classList.add('hidden');
-            } else {
-                renderUpdateTable(knowledgeItems);
-                renderRoadmapReviewTable(roadmapItems);
-                statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析・分類が完了しました。下の2つの表で内容を確認・編集してください。</div>`;
-                reviewArea.classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error('AI解析エラー:', error);
-            statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラーが発生しました: ${error.message}</div>`;
-        }
-    }
-
-    async function callGeminiForExtraction(base64, mimeType, systemPrompt) {
-        const apiKey = sessionStorage.getItem('google_api_key');
-        if (!apiKey) throw new Error("Google AI APIキーが設定されていません。");
-        
-        const payload = {
-            contents: [{ parts: [{ text: systemPrompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-
-        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) { const err = await response.json(); throw new Error(`API Error: ${err.error.message}`); }
-        const result = await response.json();
-        return result.candidates[0].content.parts[0].text;
-    }
-
-    function renderUpdateTable(qaPairs) {
-        const tableBody = document.getElementById('update-table');
-        const daiCategories = [...new Set(knowledgeBaseData.map(item => item.daiCategory).filter(Boolean))];
-        const chuCategories = [...new Set(knowledgeBaseData.map(item => item.chuCategory).filter(Boolean))];
-
-        tableBody.innerHTML = qaPairs.map((pair, index) => `
-            <tr id="row-${index}">
-                <td><textarea name="question">${pair.question || ''}</textarea></td>
-                <td><textarea name="answer">${pair.answer || ''}</textarea></td>
-                <td><input list="dai-cat-list" name="daiCategory" placeholder="大カテゴリ"><datalist id="dai-cat-list">${daiCategories.map(c => `<option value="${c}">`).join('')}</datalist></td>
-                <td><input list="chu-cat-list" name="chuCategory" placeholder="中カテゴリ"><datalist id="chu-cat-list">${chuCategories.map(c => `<option value="${c}">`).join('')}</datalist></td>
-                <td><input type="text" name="keywords" placeholder="カンマ区切り"></td>
-                <td><button onclick="document.getElementById('row-${index}').remove()" class="text-red-500 hover:text-red-700">✖</button></td>
-            </tr>
-        `).join('');
-    }
-
-    function renderRoadmapReviewTable(qaPairs) {
-        const tableBody = document.getElementById('roadmap-review-table');
-        tableBody.innerHTML = qaPairs.map((pair, index) => `
-            <tr id="review-row-${index}">
-                <td><textarea name="question">${pair.question || ''}</textarea></td>
-                <td><textarea name="current_state">${pair.answer || ''}</textarea></td>
-                <td><select name="status"><option>未対応</option><option>対応中</option><option>対応済</option></select></td>
-                <td><select name="priority"><option>低</option><option>中</option><option>高</option></select></td>
-                <td><input type="text" name="department" placeholder="担当部署"></td>
-                <td><input type="text" name="certification" placeholder="例: ISO27001"></td>
-                <td><button onclick="document.getElementById('review-row-${index}').remove()" class="text-red-500 hover:text-red-700">✖</button></td>
-            </tr>
-        `).join('');
-    }
-
-    async function saveAllToGitHub() {
-        const statusDiv = document.getElementById('github-save-status');
-        try {
-            const pat = sessionStorage.getItem('github_pat');
-            if (!pat) throw new Error("GitHub Personal Access Tokenが設定されていません。");
-
-            statusDiv.innerHTML = `<p class="text-blue-600">GitHubに保存中...</p>`;
-            
-            const updatedKnowledgeData = generateUpdatedKnowledgeDataArray();
-            const updatedRoadmapData = generateNewRoadmapItems();
-            
-            const repoInfo = getRepoInfo();
-            const filePath = 'index.html';
-
-            const fileResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${filePath}`, { headers: { 'Authorization': `token ${pat}` }});
-            if (!fileResponse.ok) throw new Error('GitHubからファイルを取得できませんでした。PATの権限やリポジトリ情報を確認してください。');
-            const fileData = await fileResponse.json();
-            let currentContent = atob(fileData.content);
-
-            const newKnowledgeDataString = `let knowledgeBaseData = ${JSON.stringify(updatedKnowledgeData, null, 4)};`;
-            const newRoadmapDataString = `let roadmapData = ${JSON.stringify(updatedRoadmapData, null, 4)};`;
-            
-            currentContent = currentContent.replace(/let knowledgeBaseData = \[[\s\S]*?\];/, newKnowledgeDataString);
-            currentContent = currentContent.replace(/let roadmapData = \[[\s\S]*?\];/, newRoadmapDataString);
-
-            const commitResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${filePath}`, {
-                method: 'PUT',
-                headers: { 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: `Batch update knowledge and roadmap on ${new Date().toLocaleString()}`,
-                    content: btoa(unescape(encodeURIComponent(currentContent))),
-                    sha: fileData.sha
-                })
-            });
-
-            if (!commitResponse.ok) throw new Error('GitHubへの保存に失敗しました。');
-
-            statusDiv.innerHTML = `<p class="text-green-600">成功！データが更新されました。ページをリロードします。</p>`;
-            alert('ナレッジベースとロードマップが更新されました！');
-            location.reload();
-
-        } catch (error) {
-            console.error('GitHub save error:', error);
-            statusDiv.innerHTML = `<p class="text-red-600">エラー: ${error.message}</p>`;
-        }
-    }
-
-    function generateUpdatedKnowledgeDataArray() {
-        const tableRows = document.querySelectorAll('#update-table tr');
-        const newEntries = [];
-        let maxId = knowledgeBaseData.reduce((max, item) => Math.max(max, parseInt((item.id || 'SEC-0000').split('-')[1])), 0);
-
-        tableRows.forEach(row => {
-            maxId++;
-            newEntries.push({
-                id: `SEC-${String(maxId).padStart(4, '0')}`,
-                question: row.querySelector('[name="question"]').value,
-                answer: row.querySelector('[name="answer"]').value,
-                daiCategory: row.querySelector('[name="daiCategory"]').value,
-                chuCategory: row.querySelector('[name="chuCategory"]').value,
-                keywords: row.querySelector('[name="keywords"]').value,
-                supplement: '', department: '未定', updated: new Date().toISOString().split('T')[0]
-            });
-        });
-        return [...knowledgeBaseData, ...newEntries];
-    }
-
-    function generateNewRoadmapItems() {
-        const tableRows = document.querySelectorAll('#roadmap-review-table tr');
-        const newEntries = [];
-        let maxId = roadmapData.reduce((max, item) => Math.max(max, parseInt((item.id || 'RM-0000').split('-')[1])), 0);
-
-        tableRows.forEach(row => {
-            maxId++;
-            newEntries.push({
-                id: `RM-${String(maxId).padStart(4, '0')}`,
-                question: row.querySelector('[name="question"]').value,
-                current_state: row.querySelector('[name="current_state"]').value,
-                status: row.querySelector('[name="status"]').value,
-                priority: row.querySelector('[name="priority"]').value,
-                department: row.querySelector('[name="department"]').value,
-                target_date: "", completion_date: "",
-                certification: row.querySelector('[name="certification"]').value,
-                notes: ""
-            });
-        });
-        return [...roadmapData, ...newEntries];
-    }
-    
-    function getRepoInfo() {
-        const owner = sessionStorage.getItem('github_user');
-        const repo = sessionStorage.getItem('github_repo');
-        if (!owner || !repo) {
-            throw new Error("GitHubのユーザー名とリポジトリ名が設定されていません。");
-        }
-        return { owner, repo };
-    }
-
-    function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = error => reject(error);
-        });
     }
 </script>
 </body>
