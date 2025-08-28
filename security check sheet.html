@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>セキュリティチェックシート AIナレッジベース & ロードマップ</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS library for reading Excel files -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; }
@@ -13,7 +15,6 @@
         table { width: 100%; min-width: 1200px; }
         th, td { padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; white-space: normal; word-wrap: break-word; }
         th { background-color: #f3f4f6; font-weight: 700; position: sticky; top: 0; z-index: 1; cursor: pointer; }
-        th .sort-indicator { display: inline-block; margin-left: 5px; color: #9ca3af; }
         .search-box { position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 1rem; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -179,7 +180,7 @@
                  <ol>
                     <li><strong>【初回のみ】</strong>「⑥ AI一括更新」タブで、必要なAPIキーを設定します。</li>
                     <li><strong>「⑥ AI一括更新」タブ</strong> を開きます。</li>
-                    <li>チェックシートファイルを1つアップロードします。<strong>(対応形式: .csv, .txt, .pdf, 画像ファイル)</strong></li>
+                    <li>チェックシートファイルを1つアップロードします。<strong>(Excel, CSV, TXT, PDF, 画像ファイルなどに対応)</strong></li>
                     <li>AIがファイルから「対応済み項目（ナレッジ）」と「未対応項目（ロードマップ）」を自動で分類・抽出します。</li>
                     <li>抽出された内容を2つの表で確認し、必要に応じて修正・追記します。</li>
                     <li><strong>「GitHubに一括保存」</strong>ボタンをクリックすると、ナレッジベースとロードマップの両方が一度に更新されます。</li>
@@ -208,7 +209,7 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold">1. チェックシートファイルをアップロード</h3>
-                    <p class="text-sm text-gray-600">AIがファイルから「対応済み」「未対応」を自動で分類・抽出します。<br><strong>(対応形式: .csv, .txt, .pdf, .png, .jpg など)</strong></p>
+                    <p class="text-sm text-gray-600">AIがファイルから「対応済み」「未対応」を自動で分類・抽出します。<br><strong>(対応形式: .xlsx, .csv, .txt, .pdf, .png, .jpg など)</strong></p>
                     <input type="file" id="file-uploader" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
                 </div>
                 <div id="ai-parser-status" class="hidden"></div>
@@ -263,24 +264,36 @@
         const statusContainer = document.getElementById('ai-parser-status');
         const reviewArea = document.getElementById('review-area');
         
-        const supportedTypes = ['text/csv', 'text/plain', 'application/pdf', 'image/jpeg', 'image/png'];
-        if (!supportedTypes.includes(file.type)) {
-            let userFriendlyTypeName = 'このファイル形式';
-            if (file.name.endsWith('.xlsx')) userFriendlyTypeName = 'Excel (.xlsx)';
-            if (file.name.endsWith('.docx')) userFriendlyTypeName = 'Word (.docx)';
-            
-            statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラー: ${userFriendlyTypeName} は直接サポートされていません。お手数ですが、CSV, TXT, PDF, または画像形式に変換してからアップロードしてください。</div>`;
-            statusContainer.classList.remove('hidden');
-            reviewArea.classList.add('hidden');
-            return;
-        }
-
         statusContainer.innerHTML = `<div class="flex items-center space-x-2 p-4 bg-blue-50 rounded-md"><div class="loader"></div><p>AIがファイルを解析中です...</p></div>`;
         statusContainer.classList.remove('hidden');
         reviewArea.classList.add('hidden');
 
         try {
-            const base64 = await fileToBase64(file);
+            let fileContentForAI;
+            let mimeTypeForAI;
+
+            // Excel file handling
+            if (file.name.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer);
+                let fullText = '';
+                workbook.SheetNames.forEach(sheetName => {
+                    fullText += `--- シート: ${sheetName} ---\n\n`;
+                    fullText += XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+                    fullText += '\n\n';
+                });
+                fileContentForAI = btoa(unescape(encodeURIComponent(fullText)));
+                mimeTypeForAI = 'text/plain';
+            } else {
+                // Handle other supported types
+                const supportedTypes = ['text/csv', 'text/plain', 'application/pdf', 'image/jpeg', 'image/png'];
+                if (!supportedTypes.includes(file.type)) {
+                    throw new Error(`サポートされていないファイル形式です: ${file.name.split('.').pop()}`);
+                }
+                fileContentForAI = await fileToBase64(file);
+                mimeTypeForAI = file.type;
+            }
+            
             const systemPrompt = `あなたはセキュリティ専門家です。提供された文書からQ&Aを抽出し、「対応済み」と「未対応」に分類してください。
 - 「対応済み」は、肯定的・事実を述べる回答（はい、実施済み、〇〇です、など）を持つ項目です。
 - 「未対応」は、否定的・未実施の回答（いいえ、未対応、×、No、など）を持つ項目です。
@@ -290,7 +303,7 @@
   "roadmapItems": [{"question": "質問文", "answer": "否定的な回答文"}]
 }`;
             
-            const extractedText = await callGeminiForExtraction(base64, file.type, systemPrompt);
+            const extractedText = await callGeminiForExtraction(fileContentForAI, mimeTypeForAI, systemPrompt);
             const result = JSON.parse(extractedText);
 
             renderUpdateTable(result.knowledgeItems || []);
