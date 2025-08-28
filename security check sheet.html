@@ -179,7 +179,7 @@
                  <ol>
                     <li><strong>【初回のみ】</strong>「⑥ AI一括更新」タブで、必要なAPIキーを設定します。</li>
                     <li><strong>「⑥ AI一括更新」タブ</strong> を開きます。</li>
-                    <li>チェックシートファイルを1つアップロードします。</li>
+                    <li>チェックシートファイルを1つアップロードします。<strong>(対応形式: .csv, .txt, .pdf, 画像ファイル)</strong></li>
                     <li>AIがファイルから「対応済み項目（ナレッジ）」と「未対応項目（ロードマップ）」を自動で分類・抽出します。</li>
                     <li>抽出された内容を2つの表で確認し、必要に応じて修正・追記します。</li>
                     <li><strong>「GitHubに一括保存」</strong>ボタンをクリックすると、ナレッジベースとロードマップの両方が一度に更新されます。</li>
@@ -208,7 +208,7 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold">1. チェックシートファイルをアップロード</h3>
-                    <p class="text-sm text-gray-600">AIがファイルから「対応済み」「未対応」を自動で分類・抽出します。</p>
+                    <p class="text-sm text-gray-600">AIがファイルから「対応済み」「未対応」を自動で分類・抽出します。<br><strong>(対応形式: .csv, .txt, .pdf, .png, .jpg など)</strong></p>
                     <input type="file" id="file-uploader" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
                 </div>
                 <div id="ai-parser-status" class="hidden"></div>
@@ -261,9 +261,23 @@
         if (!file) return;
 
         const statusContainer = document.getElementById('ai-parser-status');
+        const reviewArea = document.getElementById('review-area');
+        
+        const supportedTypes = ['text/csv', 'text/plain', 'application/pdf', 'image/jpeg', 'image/png'];
+        if (!supportedTypes.includes(file.type)) {
+            let userFriendlyTypeName = 'このファイル形式';
+            if (file.name.endsWith('.xlsx')) userFriendlyTypeName = 'Excel (.xlsx)';
+            if (file.name.endsWith('.docx')) userFriendlyTypeName = 'Word (.docx)';
+            
+            statusContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-800 rounded-md">エラー: ${userFriendlyTypeName} は直接サポートされていません。お手数ですが、CSV, TXT, PDF, または画像形式に変換してからアップロードしてください。</div>`;
+            statusContainer.classList.remove('hidden');
+            reviewArea.classList.add('hidden');
+            return;
+        }
+
         statusContainer.innerHTML = `<div class="flex items-center space-x-2 p-4 bg-blue-50 rounded-md"><div class="loader"></div><p>AIがファイルを解析中です...</p></div>`;
         statusContainer.classList.remove('hidden');
-        document.getElementById('review-area').classList.add('hidden');
+        reviewArea.classList.add('hidden');
 
         try {
             const base64 = await fileToBase64(file);
@@ -283,7 +297,7 @@
             renderRoadmapReviewTable(result.roadmapItems || []);
             
             statusContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-800 rounded-md">AIによる解析・分類が完了しました。下の2つの表で内容を確認・編集してください。</div>`;
-            document.getElementById('review-area').classList.remove('hidden');
+            reviewArea.classList.remove('hidden');
 
         } catch (error) {
             console.error('AI解析エラー:', error);
