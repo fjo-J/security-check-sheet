@@ -12,7 +12,11 @@
         .table-container { width: 100%; overflow-x: auto; }
         table { width: 100%; min-width: 1200px; }
         th, td { padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; white-space: normal; word-wrap: break-word; }
-        th { background-color: #f3f4f6; font-weight: 700; position: sticky; top: 0; z-index: 1; cursor: pointer; }
+        th { background-color: #f3f4f6; font-weight: 700; position: sticky; top: 0; z-index: 1; }
+        th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+        }
         .search-box { position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 1rem; }
     </style>
 </head>
@@ -138,6 +142,8 @@
         { "id": "RM-0019", "question": "利用者（全国生協連）の求めに応じてSaaS事業者やその委託先の資本関係に関する情報等が提供可能か", "current_state": "未整備", "status": "未対応", "priority": "低", "department": "法務部", "target_date": "", "completion_date": "", "certification": "", "notes": "情報提供のプロセスと範囲を定める必要がある。" }
     ];
 
+    let sortState = { key: 'priority', direction: 'desc' };
+
     document.addEventListener('DOMContentLoaded', initializeApp);
 
     function initializeApp() {
@@ -207,26 +213,103 @@
 
     function populateRoadmapTab() {
         const container = document.getElementById('roadmap-content');
-        container.innerHTML = `
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">未対応項目ロードマップ</h2>
-            <p class="text-sm text-gray-600 mb-4">現在未対応となっている項目の一覧です。</p>
-            <div class="table-container">
-                <table id="roadmap-table" class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th>ID</th><th>項目名</th><th>現状</th><th>ステータス</th><th>優先度</th><th>担当部署</th><th>対応完了予定日</th><th>対応完了日</th><th>必要な外部認証</th><th>備考</th>
-                        </tr>
-                    </thead>
-                    <tbody id="roadmap-table-body">${roadmapData.map(item => `
-                        <tr class="hover:bg-gray-50">
-                            <td>${item.id}</td><td>${item.question}</td><td>${item.current_state}</td><td>${item.status}</td>
-                            <td>${item.priority}</td><td>${item.department}</td><td>${item.target_date}</td><td>${item.completion_date}</td>
-                            <td>${item.certification}</td><td>${item.notes}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>`;
+        // Only build the table structure once
+        if (!container.querySelector('#roadmap-table')) {
+            container.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">未対応項目ロードマップ</h2>
+                <p class="text-sm text-gray-600 mb-4">現在未対応となっている項目の一覧です。「ステータス」「優先度」のヘッダーをクリックしてソートできます。</p>
+                <div class="table-container">
+                    <table id="roadmap-table" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th>ID</th>
+                                <th>項目名</th>
+                                <th>現状</th>
+                                <th data-sort="status">ステータス</th>
+                                <th data-sort="priority">優先度</th>
+                                <th>担当部署</th>
+                                <th>対応完了予定日</th>
+                                <th>対応完了日</th>
+                                <th>必要な外部認証</th>
+                                <th>備考</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roadmap-table-body"></tbody>
+                    </table>
+                </div>`;
+            
+            // Add event listeners only once
+            container.querySelectorAll('th[data-sort]').forEach(header => {
+                header.addEventListener('click', () => {
+                    const sortKey = header.dataset.sort;
+                    if (sortState.key === sortKey) {
+                        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortState.key = sortKey;
+                        sortState.direction = 'asc';
+                    }
+                    renderRoadmapTable();
+                });
+            });
+        }
+        // Render the table every time the tab is clicked to reflect the current sort state
+        renderRoadmapTable();
     }
+
+    function renderRoadmapTable() {
+        const priorityOrder = { '高': 3, '中': 2, '低': 1 };
+        const statusOrder = { '対応中': 4, '未対応': 3, '対応済': 2, '対象外': 1 };
+        
+        let sortedData = [...roadmapData];
+
+        if (sortState.key) {
+            sortedData.sort((a, b) => {
+                let valA, valB;
+                if (sortState.key === 'priority') {
+                    valA = priorityOrder[a.priority] || 0;
+                    valB = priorityOrder[b.priority] || 0;
+                } else if (sortState.key === 'status') {
+                    valA = statusOrder[a.status] || 0;
+                    valB = statusOrder[b.status] || 0;
+                }
+                
+                const modifier = sortState.direction === 'asc' ? 1 : -1;
+                
+                if (valA < valB) return -1 * modifier;
+                if (valA > valB) return 1 * modifier;
+                return 0;
+            });
+        }
+
+        const container = document.getElementById('roadmap-content');
+        if (!container) return;
+        container.querySelectorAll('th[data-sort]').forEach(th => {
+            if (th.dataset.sort === 'status') th.textContent = 'ステータス';
+            if (th.dataset.sort === 'priority') th.textContent = '優先度';
+
+            if (th.dataset.sort === sortState.key) {
+                th.textContent += sortState.direction === 'asc' ? ' ▲' : ' ▼';
+            }
+        });
+
+        const tableBody = document.getElementById('roadmap-table-body');
+        if (!tableBody) return;
+        tableBody.innerHTML = sortedData.map(item => `
+            <tr class="hover:bg-gray-50">
+                <td>${item.id}</td>
+                <td>${item.question}</td>
+                <td>${item.current_state}</td>
+                <td>${item.status}</td>
+                <td>${item.priority}</td>
+                <td>${item.department}</td>
+                <td>${item.target_date}</td>
+                <td>${item.completion_date}</td>
+                <td>${item.certification}</td>
+                <td>${item.notes}</td>
+            </tr>
+        `).join('');
+    }
+
 
     function populateCategoryMaster() {
         const container = document.getElementById('master-content');
