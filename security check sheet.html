@@ -18,6 +18,16 @@
             user-select: none;
         }
         .search-box { position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 1rem; }
+        td select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -213,7 +223,6 @@
 
     function populateRoadmapTab() {
         const container = document.getElementById('roadmap-content');
-        // Only build the table structure once
         if (!container.querySelector('#roadmap-table')) {
             container.innerHTML = `
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">未対応項目ロードマップ</h2>
@@ -238,7 +247,6 @@
                     </table>
                 </div>`;
             
-            // Add event listeners only once
             container.querySelectorAll('th[data-sort]').forEach(header => {
                 header.addEventListener('click', () => {
                     const sortKey = header.dataset.sort;
@@ -246,13 +254,27 @@
                         sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
                     } else {
                         sortState.key = sortKey;
-                        sortState.direction = 'asc';
+                        sortState.direction = 'desc'; 
                     }
                     renderRoadmapTable();
                 });
             });
+
+            const tableBody = container.querySelector('#roadmap-table-body');
+            tableBody.addEventListener('change', (event) => {
+                if (event.target.tagName === 'SELECT') {
+                    const id = event.target.dataset.id;
+                    const key = event.target.dataset.key;
+                    const value = event.target.value;
+                    
+                    const itemToUpdate = roadmapData.find(item => item.id === id);
+                    if (itemToUpdate) {
+                        itemToUpdate[key] = value;
+                        renderRoadmapTable(); 
+                    }
+                }
+            });
         }
-        // Render the table every time the tab is clicked to reflect the current sort state
         renderRoadmapTable();
     }
 
@@ -294,13 +316,25 @@
 
         const tableBody = document.getElementById('roadmap-table-body');
         if (!tableBody) return;
+
+        const statusOptions = ['対応中', '未対応', '対応済', '対象外'];
+        const priorityOptions = ['高', '中', '低'];
+
         tableBody.innerHTML = sortedData.map(item => `
             <tr class="hover:bg-gray-50">
                 <td>${item.id}</td>
                 <td>${item.question}</td>
                 <td>${item.current_state}</td>
-                <td>${item.status}</td>
-                <td>${item.priority}</td>
+                <td>
+                    <select data-id="${item.id}" data-key="status" class="w-full p-1 border border-gray-300 rounded bg-white">
+                        ${statusOptions.map(opt => `<option value="${opt}" ${item.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select data-id="${item.id}" data-key="priority" class="w-full p-1 border border-gray-300 rounded bg-white">
+                         ${priorityOptions.map(opt => `<option value="${opt}" ${item.priority === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </td>
                 <td>${item.department}</td>
                 <td>${item.target_date}</td>
                 <td>${item.completion_date}</td>
