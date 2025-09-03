@@ -128,7 +128,10 @@
         { "id": "SEC-0067", "daiCategory": "技術的セキュリティ", "chuCategory": "API", "question": "APIの長期的なクライアントクレデンシャルを用いてユーザアカウントを使えるようにすべきではない。", "keywords": "API,クレデンシャル", "answer": "本サービスではAPIを利用しません。", "supplement": "", "department": "開発部", "updated": "2025/09/03" },
         { "id": "SEC-0068", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "インシデント発生時の報告体制は確立されていますか", "keywords": "インシデント報告", "answer": "はい、確立しています。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" },
         { "id": "SEC-0069", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "インシデント発生時の原因究明、および再発防止策は適切に実施されますか", "keywords": "原因究明,再発防止", "answer": "はい、実施します。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" },
-        { "id": "SEC-0070", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "インシデントが解決した後、利用者側に報告されますか", "keywords": "インシデント報告", "answer": "はい、報告します。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" }
+        { "id": "SEC-0070", "daiCategory": "組織的セキュリティ", "chuCategory": "インシデント管理", "question": "インシデントが解決した後、利用者側に報告されますか", "keywords": "インシデント報告", "answer": "はい、報告します。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" },
+        { "id": "SEC-0071", "daiCategory": "契約・法務", "chuCategory": "SLA", "question": "障害時の補償はありますか。", "keywords": "補償,返金,減額", "answer": "はい、利用契約書にて、停止時間に応じた利用料の減額または返金という形で補償しております。", "supplement": "停止時間が連続して3営業日を超えた場合、その停止日数に応じて月額利用料を減額し、又は返金するものとします。", "department": "法務部", "updated": "2025/09/03" },
+        { "id": "SEC-0072", "daiCategory": "データ管理", "chuCategory": "バックアップ", "question": "DBの多重化や冗長化などの障害対策は実施されていますか。", "keywords": "多重化,冗長化,レプリケーション,スナップショット", "answer": "はい。DBの多重化・冗長化についてはレプリケーションを実施しています。また、毎日スナップショットを取得し、安全に保管しています。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" },
+        { "id": "SEC-0073", "daiCategory": "組織的セキュリティ", "chuCategory": "サポート体制", "question": "サービスの利用に必要な端末のシステム要件はありますか。", "keywords": "システム要件,OS,ブラウザ", "answer": "はい。本サービスをご利用いただくにあたり、特定のOSやブラウザのバージョンなどをシステム要件として定めております。詳細はお問い合わせください。なお、要件を満たしているかのご確認は、お客様にてお願いしております。", "supplement": "", "department": "情報システム部", "updated": "2025/09/03" }
     ];
     let roadmapData = [
         { "id": "RM-0001", "question": "SOC2 Type2レポートは取得していますか？", "current_state": "未取得", "status": "未対応", "priority": "中", "department": "情報システム部", "target_date": "2026-03-31", "completion_date": "", "certification": "SOC2 Type2", "notes": "" },
@@ -149,7 +152,10 @@
         { "id": "RM-0016", "question": "生成系AIサービスを利用する場合、入力情報をサービス全体の学習に利用しないサービスであることを確認できますか。", "current_state": "本サービスは生成系AIではないため該当しない。", "status": "対象外", "priority": "低", "department": "開発部", "target_date": "", "completion_date": "", "certification": "", "notes": "" },
         { "id": "RM-0017", "question": "生成系AIサービスを利用する場合、入力データが学習されないような設定（オプトアウト等）を講じることは可能ですか。", "current_state": "本サービスは生成系AIではないため該当しない。", "status": "対象外", "priority": "低", "department": "開発部", "target_date": "", "completion_date": "", "certification": "", "notes": "" },
         { "id": "RM-0018", "question": "利用者、および御社運用担当者が外部から使用するネットワークポート以外は、ネットワーク層、トランスポート層、アプリケーション層でのファイアウォールにより接続を不許可にしていますか。", "current_state": "未回答", "status": "未対応", "priority": "中", "department": "情報システム部", "target_date": "", "completion_date": "", "certification": "", "notes": "ポート管理と多層防御に関する確認事項。" },
-        { "id": "RM-0019", "question": "利用者（全国生協連）の求めに応じてSaaS事業者やその委託先の資本関係に関する情報等が提供可能か", "current_state": "未整備", "status": "未対応", "priority": "低", "department": "法務部", "target_date": "", "completion_date": "", "certification": "", "notes": "情報提供のプロセスと範囲を定める必要がある。" }
+        { "id": "RM-0019", "question": "利用者（全国生協連）の求めに応じてSaaS事業者やその委託先の資本関係に関する情報等が提供可能か", "current_state": "未整備", "status": "未対応", "priority": "低", "department": "法務部", "target_date": "", "completion_date": "", "certification": "", "notes": "情報提供のプロセスと範囲を定める必要がある。" },
+        { "id": "RM-0020", "question": "Webサイトやデータに対する改ざん検知の仕組みは導入されていますか。", "current_state": "機能なし", "status": "未対応", "priority": "中", "department": "開発部", "target_date": "", "completion_date": "", "certification": "", "notes": "" },
+        { "id": "RM-0021", "question": "他のクラウドサービスとの標準的な連携機能はありますか。", "current_state": "標準機能としては提供していないが、個別開発で対応可能な場合がある。", "status": "未対応", "priority": "低", "department": "開発部", "target_date": "", "completion_date": "", "certification": "", "notes": "" },
+        { "id": "RM-0022", "question": "システム全体が利用不可となった場合の代替手段はありますか。", "current_state": "システム障害時の代替手段は提供していない。", "status": "未対応", "priority": "中", "department": "開発部", "target_date": "", "completion_date": "", "certification": "", "notes": "" }
     ];
 
     let sortState = { key: 'priority', direction: 'desc' };
